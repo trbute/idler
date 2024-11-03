@@ -5,7 +5,8 @@
 ### Migrations
 
 Use Postgres + [Goose](https://github.com/pressly/goose) 
-From sql/schema directory:
+
+From `sql/schema` directory:
 
     goose postgres {{databaseConnectionURL}} up
 
