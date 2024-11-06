@@ -46,12 +46,14 @@ func main() {
 		jwtSecret: jwtSecret,
 	}
 
-	go mux.HandleFunc("POST /api/users", apiCfg.handleCreateUser)
-	go mux.HandleFunc("PUT /api/users", apiCfg.handleUpdateUser)
-	go mux.HandleFunc("POST /api/characters", apiCfg.handleCreateCharacter)
-	go mux.HandleFunc("POST /api/login", apiCfg.handleLogin)
-	go mux.HandleFunc("POST /api/refresh", apiCfg.handleRefresh)
-	go mux.HandleFunc("POST /api/revoke", apiCfg.handleRevoke)
+	mux.HandleFunc("POST /api/users", apiCfg.handleCreateUser)
+	mux.HandleFunc("PUT /api/users", apiCfg.handleUpdateUser)
+	mux.HandleFunc("POST /api/characters", apiCfg.handleCreateCharacter)
+	mux.HandleFunc("PUT /api/characters", apiCfg.handleUpdateCharacter)
+	mux.HandleFunc("GET /api/actions", apiCfg.handleGetActions)
+	mux.HandleFunc("POST /api/login", apiCfg.handleLogin)
+	mux.HandleFunc("POST /api/refresh", apiCfg.handleRefresh)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handleRevoke)
 
 	server.ListenAndServe()
 }

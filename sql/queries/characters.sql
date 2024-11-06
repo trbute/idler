@@ -13,3 +13,13 @@ RETURNING *;
 SELECT * from characters
 WHERE id = $1;
 
+-- name: GetCharacterByName :one
+SELECT * from characters
+where name = $1;
+
+-- name: UpdateCharacterByID :one
+UPDATE characters
+SET action_id = $1, 
+	updated_at = NOW()
+WHERE id = $2
+RETURNING *;

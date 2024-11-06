@@ -66,3 +66,55 @@ func (q *Queries) GetCharacterById(ctx context.Context, id uuid.UUID) (Character
 	)
 	return i, err
 }
+
+const getCharacterByName = `-- name: GetCharacterByName :one
+SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at from characters
+where name = $1
+`
+
+func (q *Queries) GetCharacterByName(ctx context.Context, name string) (Character, error) {
+	row := q.db.QueryRowContext(ctx, getCharacterByName, name)
+	var i Character
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.PositionX,
+		&i.PositionY,
+		&i.ActionID,
+		&i.ActionTarget,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateCharacterByID = `-- name: UpdateCharacterByID :one
+UPDATE characters
+SET action_id = $1, 
+	updated_at = NOW()
+WHERE id = $2
+RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at
+`
+
+type UpdateCharacterByIDParams struct {
+	ActionID int32
+	ID       uuid.UUID
+}
+
+func (q *Queries) UpdateCharacterByID(ctx context.Context, arg UpdateCharacterByIDParams) (Character, error) {
+	row := q.db.QueryRowContext(ctx, updateCharacterByID, arg.ActionID, arg.ID)
+	var i Character
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.PositionX,
+		&i.PositionY,
+		&i.ActionID,
+		&i.ActionTarget,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
