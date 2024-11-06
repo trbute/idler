@@ -46,7 +46,6 @@ func main() {
 		jwtSecret: jwtSecret,
 	}
 
-	go mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 	go mux.HandleFunc("POST /api/users", apiCfg.handleCreateUser)
 	go mux.HandleFunc("PUT /api/users", apiCfg.handleUpdateUser)
 	go mux.HandleFunc("POST /api/characters", apiCfg.handleCreateCharacter)
