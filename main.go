@@ -2,13 +2,14 @@ package main
 
 import (
 	"database/sql"
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
-	"github.com/trbute/idler/internal/database"
 	"log"
 	"net/http"
 	"os"
 	"sync/atomic"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/trbute/idler/internal/database"
 )
 
 type apiConfig struct {
@@ -21,7 +22,7 @@ type apiConfig struct {
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env")
+		log.Fatal(err)
 	}
 
 	dbURL := os.Getenv("DB_URL")
