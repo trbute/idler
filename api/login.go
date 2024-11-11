@@ -1,14 +1,15 @@
-package main
+package api
 
 import (
 	"encoding/json"
-	"github.com/trbute/idler/internal/auth"
-	"github.com/trbute/idler/internal/database"
 	"net/http"
 	"time"
+
+	"github.com/trbute/idler/internal/auth"
+	"github.com/trbute/idler/internal/database"
 )
 
-func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -28,7 +29,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
+	user, err := cfg.DB.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password", err)
 		return
@@ -44,7 +45,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	expireDuration := time.Duration(time.Duration(expiresInSeconds) * time.Second)
 
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, expireDuration)
+	token, err := auth.MakeJWT(user.ID, cfg.JwtSecret, expireDuration)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "JWT creation failed", err)
 		return
@@ -59,7 +60,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	day := 24 * time.Hour
 	refreshExpire := time.Now().Add(60 * day)
 
-	_, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+	_, err = cfg.DB.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 		Token:     refreshToken,
 		UserID:    user.ID,
 		ExpiresAt: refreshExpire,

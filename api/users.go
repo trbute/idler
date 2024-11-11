@@ -1,12 +1,13 @@
-package main
+package api
 
 import (
 	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/trbute/idler/internal/auth"
 	"github.com/trbute/idler/internal/database"
-	"net/http"
-	"time"
 )
 
 type User struct {
@@ -16,7 +17,7 @@ type User struct {
 	Email     string    `json:"email"`
 }
 
-func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	type Parameters struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -36,11 +37,10 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+	user, err := cfg.DB.CreateUser(r.Context(), database.CreateUserParams{
 		Email:          params.Email,
 		HashedPassword: hashedPassword,
 	})
-
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "User creation failed", err)
 		return
@@ -52,10 +52,9 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
 	})
-
 }
 
-func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	type Parameters struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -75,7 +74,7 @@ func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return
@@ -87,7 +86,7 @@ func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := cfg.db.UpdateUserById(r.Context(), database.UpdateUserByIdParams{
+	user, err := cfg.DB.UpdateUserById(r.Context(), database.UpdateUserByIdParams{
 		ID:             userID,
 		Email:          params.Email,
 		HashedPassword: hashedPassword,

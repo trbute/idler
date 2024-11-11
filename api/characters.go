@@ -1,13 +1,14 @@
-package main
+package api
 
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/trbute/idler/internal/auth"
 	"github.com/trbute/idler/internal/database"
-	"net/http"
-	"time"
 )
 
 type Character struct {
@@ -19,7 +20,7 @@ type Character struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (cfg *apiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Request) {
 	type Parameters struct {
 		Name string `json:"name"`
 	}
@@ -38,7 +39,7 @@ func (cfg *apiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return
@@ -46,11 +47,10 @@ func (cfg *apiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 
 	fmt.Printf("%v \n", userID)
 
-	character, err := cfg.db.CreateCharacter(r.Context(), database.CreateCharacterParams{
+	character, err := cfg.DB.CreateCharacter(r.Context(), database.CreateCharacterParams{
 		UserID: userID,
 		Name:   params.Name,
 	})
-
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Character creation failed", err)
 		return
@@ -66,7 +66,7 @@ func (cfg *apiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-func (cfg *apiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Request) {
 	type Parameters struct {
 		Name     string `json:"name"`
 		ActionID int32  `json:"action_id"`
@@ -86,13 +86,13 @@ func (cfg *apiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return
 	}
 
-	character, err := cfg.db.GetCharacterByName(r.Context(), params.Name)
+	character, err := cfg.DB.GetCharacterByName(r.Context(), params.Name)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve user", err)
 		return
@@ -103,13 +103,13 @@ func (cfg *apiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	action, err := cfg.db.GetActionByID(r.Context(), params.ActionID)
+	action, err := cfg.DB.GetActionByID(r.Context(), params.ActionID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve action", err)
 		return
 	}
 
-	character, err = cfg.db.UpdateCharacterByID(r.Context(), database.UpdateCharacterByIDParams{
+	character, err = cfg.DB.UpdateCharacterByID(r.Context(), database.UpdateCharacterByIDParams{
 		ID:       character.ID,
 		ActionID: action.ID,
 	})

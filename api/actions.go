@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"net/http"
@@ -9,8 +9,8 @@ type Action struct {
 	Name string `json:"name"`
 }
 
-func (cfg *apiConfig) handleGetActions(w http.ResponseWriter, r *http.Request) {
-	actions, err := cfg.db.GetAllActions(r.Context())
+func (cfg *ApiConfig) handleGetActions(w http.ResponseWriter, r *http.Request) {
+	actions, err := cfg.DB.GetAllActions(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve actions", err)
 		return
@@ -23,7 +23,6 @@ func (cfg *apiConfig) handleGetActions(w http.ResponseWriter, r *http.Request) {
 			ID:   action.ID,
 			Name: action.Name,
 		})
-
 	}
 
 	respondWithJSON(w, http.StatusCreated, actionResponse)
