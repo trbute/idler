@@ -2,9 +2,25 @@
 
 ## Go api-based idler rpg
 
+### ENV VARS
+
+    create .env (copy/modify .env.example)
+
+## Running via Docker
+
+### create db, run migrations, run server
+
+    docker compose up --build
+
+### delete containers & volumes
+
+    docker compose down -v
+
+## Running locally
+
 ### Migrations
 
-Use Postgres + [Goose](https://github.com/pressly/goose) 
+Use Postgres + [Goose](https://github.com/pressly/goose)
 
 From `sql/schema` directory:
 
@@ -14,12 +30,6 @@ From `sql/schema` directory:
 
 Use [SQLC](https://docs.sqlc.dev/en/stable/tutorials/getting-started-postgresql.html)
 
-### ENV VARS
-
-    DB_URL = "postgres://{{user}}:{{password}}@localhost:5432/idler?sslmode=disable"
-    PLATFORM = "dev"
-    JWT_SECRET = "{{jwt}}"
-    
-Generate JWT secret token: 
+Generate JWT secret token:
 
     openssl rand -base64 64

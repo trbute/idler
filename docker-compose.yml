@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      IS_DOCKER: 1
+      DB_URL: ${DOCKER_DB_URL}
+      PLATFORM: ${PLATFORM}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8080:8080"
+    command: ./idler
+
+  migrate:
+    image: golang:1.23.3
+    depends_on:
+      - db
+    environment:
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    volumes:
+      - ./src/sql/schema:/migrations
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        'go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir /migrations postgres "postgres://$DB_USER:$DB_PASSWORD@db:$DB_PORT/$DB_NAME?sslmode=disable" up',
+      ]
+
+volumes:
+  postgres_data:

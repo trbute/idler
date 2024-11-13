@@ -15,9 +15,10 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
+	if os.Getenv("IS_DOCKER") == "" {
+		if err := godotenv.Load("../.env"); err != nil {
+			log.Fatal("Error loading .env file")
+		}
 	}
 
 	dbURL := os.Getenv("DB_URL")
