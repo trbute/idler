@@ -3,11 +3,13 @@ package api
 import (
 	"net/http"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/internal/database"
 )
 
 type ApiConfig struct {
 	DB        *database.Queries
+	Redis     *redis.Client
 	Platform  string
 	JwtSecret string
 }

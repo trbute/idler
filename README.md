@@ -4,11 +4,11 @@
 
 ### ENV VARS
 
-    create .env (copy/modify .env.example)
+    create .env (copy & modify .env.example)
 
 ## Running via Docker
 
-### create db, run migrations, run server
+### create db & redis, run migrations, run server
 
     docker compose up --build
 
@@ -29,7 +29,3 @@ From `sql/schema` directory:
 ### Query builder
 
 Use [SQLC](https://docs.sqlc.dev/en/stable/tutorials/getting-started-postgresql.html)
-
-Generate JWT secret token:
-
-    openssl rand -base64 64

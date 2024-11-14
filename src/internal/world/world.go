@@ -3,11 +3,13 @@ package world
 import (
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/internal/database"
 )
 
 type ServerConfig struct {
 	DB       *database.Queries
+	Redis    *redis.Client
 	Platform string
 	TickRate time.Duration
 }
