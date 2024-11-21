@@ -5,85 +5,82 @@
 package database
 
 import (
-	"database/sql"
-	"time"
-
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Action struct {
 	ID        int32
 	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
 }
 
 type Character struct {
-	ID           uuid.UUID
-	UserID       uuid.UUID
+	ID           pgtype.UUID
+	UserID       pgtype.UUID
 	Name         string
 	PositionX    int32
 	PositionY    int32
 	ActionID     int32
-	ActionTarget uuid.NullUUID
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ActionTarget pgtype.UUID
+	CreatedAt    pgtype.Timestamp
+	UpdatedAt    pgtype.Timestamp
 }
 
 type Grid struct {
 	PositionX int32
 	PositionY int32
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
 }
 
 type Inventory struct {
-	ID        uuid.UUID
-	UserID    uuid.NullUUID
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
 	PositionX int32
 	PositionY int32
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
 }
 
 type Item struct {
-	ID        uuid.UUID
+	ID        pgtype.UUID
 	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
 }
 
 type RefreshToken struct {
 	Token     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    uuid.UUID
-	ExpiresAt time.Time
-	RevokedAt sql.NullTime
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
+	UserID    pgtype.UUID
+	ExpiresAt pgtype.Timestamp
+	RevokedAt pgtype.Timestamp
 }
 
 type Resource struct {
-	ID             uuid.UUID
-	ResourceNodeID uuid.UUID
-	ItemID         uuid.UUID
-	DropChance     string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             pgtype.UUID
+	ResourceNodeID pgtype.UUID
+	ItemID         pgtype.UUID
+	DropChance     int32
+	CreatedAt      pgtype.Timestamp
+	UpdatedAt      pgtype.Timestamp
 }
 
 type ResourceNode struct {
-	ID        uuid.UUID
-	Name      sql.NullString
+	ID        pgtype.UUID
+	Name      pgtype.Text
 	PositionX int32
 	PositionY int32
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
 }
 
 type User struct {
-	ID             uuid.UUID
+	ID             pgtype.UUID
 	Email          string
 	HashedPassword string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	CreatedAt      pgtype.Timestamp
+	UpdatedAt      pgtype.Timestamp
 }

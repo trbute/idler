@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/trbute/idler/internal/auth"
 )
 
@@ -25,7 +26,7 @@ func (cfg *ApiConfig) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tokenRecord.ExpiresAt.Before(time.Now()) || tokenRecord.RevokedAt.Valid {
+	if tokenRecord.ExpiresAt.Time.Before(time.Now()) || tokenRecord.RevokedAt.Valid {
 		respondWithError(
 			w,
 			http.StatusUnauthorized,
@@ -38,7 +39,8 @@ func (cfg *ApiConfig) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	expiresInSeconds := 3600
 	expireDuration := time.Duration(time.Duration(expiresInSeconds) * time.Second)
 
-	token, err = auth.MakeJWT(tokenRecord.UserID, cfg.JwtSecret, expireDuration)
+	userID := uuid.UUID(tokenRecord.UserID.Bytes)
+	token, err = auth.MakeJWT(userID, cfg.JwtSecret, expireDuration)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "JWT creation failed", err)
 		return

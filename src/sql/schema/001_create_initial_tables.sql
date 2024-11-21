@@ -75,7 +75,7 @@ CREATE TABLE resources(
 	id UUID PRIMARY KEY,
 	resource_node_id UUID NOT NULL,
 	item_id UUID NOT NULL,
-	drop_chance DECIMAL NOT NULL,
+	drop_chance INTEGER NOT NULL,
 	created_at TIMESTAMP NOT NULL,
 	updated_at TIMESTAMP NOT NULL
 );

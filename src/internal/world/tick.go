@@ -8,10 +8,7 @@ import (
 func (cfg *WorldConfig) ProcessTicks() {
 	fmt.Println("starting tick")
 	tick := time.NewTicker(time.Millisecond * 500)
-	iter := 1
 	for range tick.C {
-		fmt.Printf("\ntick %v\n", iter)
-		iter++
 		for coord := range cfg.World.Grid {
 			go cfg.processActions(coord)
 		}

@@ -14,7 +14,7 @@ SELECT id, name, position_x, position_y, created_at, updated_at FROM resource_no
 `
 
 func (q *Queries) GetResourceNodes(ctx context.Context) ([]ResourceNode, error) {
-	rows, err := q.db.QueryContext(ctx, getResourceNodes)
+	rows, err := q.db.Query(ctx, getResourceNodes)
 	if err != nil {
 		return nil, err
 	}
@@ -33,9 +33,6 @@ func (q *Queries) GetResourceNodes(ctx context.Context) ([]ResourceNode, error) 
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,7 +35,7 @@ type Character struct {
 
 type Resource struct {
 	Item       Item
-	DropChance float64
+	DropChance int32
 }
 
 type ResourceNode struct {
@@ -116,7 +115,7 @@ func (cfg *WorldConfig) GetWorld() *World {
 
 		for _, resourceRecord := range resourceRecords {
 			resourceItem := Resource{}
-			resourceItem.DropChance, err = strconv.ParseFloat(resourceRecord.DropChance, 64)
+			resourceItem.DropChance = resourceRecord.DropChance
 			if err != nil {
 				log.Fatalf("Failed to parse drop chance as float: %v", err)
 			}
@@ -127,7 +126,7 @@ func (cfg *WorldConfig) GetWorld() *World {
 				log.Fatalf("Failed to get resources: %v", err)
 			}
 
-			itemItem.ID = itemRecord.ID
+			itemItem.ID = uuid.UUID(itemRecord.ID.Bytes)
 			itemItem.Name = itemRecord.Name
 			resourceItem.Item = itemItem
 

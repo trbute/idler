@@ -14,7 +14,7 @@ SELECT position_x, position_y, created_at, updated_at FROM grid
 `
 
 func (q *Queries) GetGrid(ctx context.Context) ([]Grid, error) {
-	rows, err := q.db.QueryContext(ctx, getGrid)
+	rows, err := q.db.Query(ctx, getGrid)
 	if err != nil {
 		return nil, err
 	}
@@ -31,9 +31,6 @@ func (q *Queries) GetGrid(ctx context.Context) ([]Grid, error) {
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

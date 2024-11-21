@@ -5,19 +5,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/internal/auth"
 	"github.com/trbute/idler/internal/database"
 	"github.com/trbute/idler/internal/world"
 )
 
 type Character struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Name      string    `json:"name"`
-	ActionID  int32     `json:"action_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        pgtype.UUID      `json:"id"`
+	UserID    pgtype.UUID      `json:"user_id"`
+	Name      string           `json:"name"`
+	ActionID  int32            `json:"action_id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +45,13 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	pgUserID := pgtype.UUID{
+		Bytes: userID,
+		Valid: true,
+	}
+
 	character, err := cfg.DB.CreateCharacter(r.Context(), database.CreateCharacterParams{
-		UserID: userID,
+		UserID: pgUserID,
 		Name:   params.Name,
 	})
 	if err != nil {
@@ -96,7 +101,12 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if character.UserID != userID {
+	userUUID := pgtype.UUID{
+		Bytes: userID,
+		Valid: true,
+	}
+
+	if character.UserID != userUUID {
 		respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", err)
 		return
 	}

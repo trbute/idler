@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/internal/auth"
 	"github.com/trbute/idler/internal/database"
 )
@@ -45,7 +47,9 @@ func (cfg *ApiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	expireDuration := time.Duration(time.Duration(expiresInSeconds) * time.Second)
 
-	token, err := auth.MakeJWT(user.ID, cfg.JwtSecret, expireDuration)
+	userid := uuid.UUID(user.ID.Bytes)
+
+	token, err := auth.MakeJWT(userid, cfg.JwtSecret, expireDuration)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "JWT creation failed", err)
 		return
@@ -60,10 +64,15 @@ func (cfg *ApiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	day := 24 * time.Hour
 	refreshExpire := time.Now().Add(60 * day)
 
+	pgTimestamp := pgtype.Timestamp{
+		Time:  refreshExpire,
+		Valid: true,
+	}
+
 	_, err = cfg.DB.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 		Token:     refreshToken,
 		UserID:    user.ID,
-		ExpiresAt: refreshExpire,
+		ExpiresAt: pgTimestamp,
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Refresh token db insert failed", err)

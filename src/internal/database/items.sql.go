@@ -8,7 +8,7 @@ package database
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getItemByResourceId = `-- name: GetItemByResourceId :one
@@ -16,8 +16,8 @@ SELECT id, name, created_at, updated_at FROM items
 WHERE id = (SELECT item_id FROM resources WHERE resources.id = $1)
 `
 
-func (q *Queries) GetItemByResourceId(ctx context.Context, id uuid.UUID) (Item, error) {
-	row := q.db.QueryRowContext(ctx, getItemByResourceId, id)
+func (q *Queries) GetItemByResourceId(ctx context.Context, id pgtype.UUID) (Item, error) {
+	row := q.db.QueryRow(ctx, getItemByResourceId, id)
 	var i Item
 	err := row.Scan(
 		&i.ID,

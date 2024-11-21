@@ -8,7 +8,7 @@ package database
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createInventory = `-- name: CreateInventory :one
@@ -22,8 +22,8 @@ VALUES (
 RETURNING id, user_id, position_x, position_y, created_at, updated_at
 `
 
-func (q *Queries) CreateInventory(ctx context.Context, userID uuid.NullUUID) (Inventory, error) {
-	row := q.db.QueryRowContext(ctx, createInventory, userID)
+func (q *Queries) CreateInventory(ctx context.Context, userID pgtype.UUID) (Inventory, error) {
+	row := q.db.QueryRow(ctx, createInventory, userID)
 	var i Inventory
 	err := row.Scan(
 		&i.ID,
@@ -41,8 +41,8 @@ SELECT id, user_id, position_x, position_y, created_at, updated_at from inventor
 WHERE id = $1
 `
 
-func (q *Queries) GetInventory(ctx context.Context, id uuid.UUID) (Inventory, error) {
-	row := q.db.QueryRowContext(ctx, getInventory, id)
+func (q *Queries) GetInventory(ctx context.Context, id pgtype.UUID) (Inventory, error) {
+	row := q.db.QueryRow(ctx, getInventory, id)
 	var i Inventory
 	err := row.Scan(
 		&i.ID,

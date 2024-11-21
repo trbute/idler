@@ -8,7 +8,7 @@ package database
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getResourcesByNodeId = `-- name: GetResourcesByNodeId :many
@@ -16,8 +16,8 @@ SELECT id, resource_node_id, item_id, drop_chance, created_at, updated_at FROM r
 WHERE resource_node_id = $1
 `
 
-func (q *Queries) GetResourcesByNodeId(ctx context.Context, resourceNodeID uuid.UUID) ([]Resource, error) {
-	rows, err := q.db.QueryContext(ctx, getResourcesByNodeId, resourceNodeID)
+func (q *Queries) GetResourcesByNodeId(ctx context.Context, resourceNodeID pgtype.UUID) ([]Resource, error) {
+	rows, err := q.db.Query(ctx, getResourcesByNodeId, resourceNodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -36,9 +36,6 @@ func (q *Queries) GetResourcesByNodeId(ctx context.Context, resourceNodeID uuid.
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -8,7 +8,7 @@ package database
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -29,7 +29,7 @@ type CreateUserParams struct {
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.HashedPassword)
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.HashedPassword)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -46,8 +46,8 @@ SELECT id, email, hashed_password, created_at, updated_at from users
 WHERE id = $1
 `
 
-func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserById, id)
+func (q *Queries) GetUserById(ctx context.Context, id pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserById, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -64,7 +64,7 @@ DELETE FROM users
 `
 
 func (q *Queries) ResetUsers(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, resetUsers)
+	_, err := q.db.Exec(ctx, resetUsers)
 	return err
 }
 
@@ -78,13 +78,13 @@ RETURNING id, email, hashed_password, created_at, updated_at
 `
 
 type UpdateUserByIdParams struct {
-	ID             uuid.UUID
+	ID             pgtype.UUID
 	Email          string
 	HashedPassword string
 }
 
 func (q *Queries) UpdateUserById(ctx context.Context, arg UpdateUserByIdParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, updateUserById, arg.ID, arg.Email, arg.HashedPassword)
+	row := q.db.QueryRow(ctx, updateUserById, arg.ID, arg.Email, arg.HashedPassword)
 	var i User
 	err := row.Scan(
 		&i.ID,

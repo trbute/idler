@@ -1,13 +1,14 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/trbute/idler/api"
@@ -35,11 +36,15 @@ func main() {
 		dbPort,
 		dbName,
 	)
-	db, err := sql.Open("postgres", dbURL)
+
+	pool, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
-		log.Fatal("Unable to connect to db")
+		log.Fatalf("Unable to connect to the database: %v", err)
 	}
-	DbConn := database.New(db)
+	defer pool.Close()
+
+	// Use the connection pool with sqlc
+	DbConn := database.New(pool)
 
 	platform := os.Getenv("PLATFORM")
 	jwtSecret := os.Getenv("JWT_SECRET")

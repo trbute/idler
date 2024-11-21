@@ -15,7 +15,7 @@ WHERE id = $1
 `
 
 func (q *Queries) GetActionByID(ctx context.Context, id int32) (Action, error) {
-	row := q.db.QueryRowContext(ctx, getActionByID, id)
+	row := q.db.QueryRow(ctx, getActionByID, id)
 	var i Action
 	err := row.Scan(
 		&i.ID,
@@ -36,7 +36,7 @@ type GetAllActionsRow struct {
 }
 
 func (q *Queries) GetAllActions(ctx context.Context) ([]GetAllActionsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllActions)
+	rows, err := q.db.Query(ctx, getAllActions)
 	if err != nil {
 		return nil, err
 	}
@@ -48,9 +48,6 @@ func (q *Queries) GetAllActions(ctx context.Context) ([]GetAllActionsRow, error)
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

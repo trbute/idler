@@ -8,7 +8,7 @@ package database
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createCharacter = `-- name: CreateCharacter :one
@@ -24,12 +24,12 @@ RETURNING id, user_id, name, position_x, position_y, action_id, action_target, c
 `
 
 type CreateCharacterParams struct {
-	UserID uuid.UUID
+	UserID pgtype.UUID
 	Name   string
 }
 
 func (q *Queries) CreateCharacter(ctx context.Context, arg CreateCharacterParams) (Character, error) {
-	row := q.db.QueryRowContext(ctx, createCharacter, arg.UserID, arg.Name)
+	row := q.db.QueryRow(ctx, createCharacter, arg.UserID, arg.Name)
 	var i Character
 	err := row.Scan(
 		&i.ID,
@@ -50,8 +50,8 @@ SELECT id, user_id, name, position_x, position_y, action_id, action_target, crea
 WHERE id = $1
 `
 
-func (q *Queries) GetCharacterById(ctx context.Context, id uuid.UUID) (Character, error) {
-	row := q.db.QueryRowContext(ctx, getCharacterById, id)
+func (q *Queries) GetCharacterById(ctx context.Context, id pgtype.UUID) (Character, error) {
+	row := q.db.QueryRow(ctx, getCharacterById, id)
 	var i Character
 	err := row.Scan(
 		&i.ID,
@@ -73,7 +73,7 @@ where name = $1
 `
 
 func (q *Queries) GetCharacterByName(ctx context.Context, name string) (Character, error) {
-	row := q.db.QueryRowContext(ctx, getCharacterByName, name)
+	row := q.db.QueryRow(ctx, getCharacterByName, name)
 	var i Character
 	err := row.Scan(
 		&i.ID,
@@ -99,11 +99,11 @@ RETURNING id, user_id, name, position_x, position_y, action_id, action_target, c
 
 type UpdateCharacterByIDParams struct {
 	ActionID int32
-	ID       uuid.UUID
+	ID       pgtype.UUID
 }
 
 func (q *Queries) UpdateCharacterByID(ctx context.Context, arg UpdateCharacterByIDParams) (Character, error) {
-	row := q.db.QueryRowContext(ctx, updateCharacterByID, arg.ActionID, arg.ID)
+	row := q.db.QueryRow(ctx, updateCharacterByID, arg.ActionID, arg.ID)
 	var i Character
 	err := row.Scan(
 		&i.ID,

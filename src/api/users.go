@@ -3,18 +3,17 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/internal/auth"
 	"github.com/trbute/idler/internal/database"
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID        pgtype.UUID      `json:"id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	Email     string           `json:"email"`
 }
 
 func (cfg *ApiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +79,11 @@ func (cfg *ApiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	pgUserID := pgtype.UUID{
+		Bytes: userID,
+		Valid: true,
+	}
+
 	hashedPassword, err := auth.HashPassword(params.Password)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Password hash failed", err)
@@ -87,7 +91,7 @@ func (cfg *ApiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := cfg.DB.UpdateUserById(r.Context(), database.UpdateUserByIdParams{
-		ID:             userID,
+		ID:             pgUserID,
 		Email:          params.Email,
 		HashedPassword: hashedPassword,
 	})
