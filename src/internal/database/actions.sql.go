@@ -10,7 +10,7 @@ import (
 )
 
 const getActionByID = `-- name: GetActionByID :one
-SELECT id, name, created_at, updated_at FROM Actions
+SELECT id, name, created_at, updated_at FROM actions
 WHERE id = $1
 `
 
@@ -27,24 +27,24 @@ func (q *Queries) GetActionByID(ctx context.Context, id int32) (Action, error) {
 }
 
 const getAllActions = `-- name: GetAllActions :many
-SELECT id, name, created_at, updated_at FROM ACTIONS
+SELECT id, name FROM actions
 `
 
-func (q *Queries) GetAllActions(ctx context.Context) ([]Action, error) {
+type GetAllActionsRow struct {
+	ID   int32
+	Name string
+}
+
+func (q *Queries) GetAllActions(ctx context.Context) ([]GetAllActionsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getAllActions)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Action
+	var items []GetAllActionsRow
 	for rows.Next() {
-		var i Action
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i GetAllActionsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

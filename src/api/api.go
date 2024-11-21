@@ -3,15 +3,15 @@ package api
 import (
 	"net/http"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/internal/database"
+	"github.com/trbute/idler/internal/world"
 )
 
 type ApiConfig struct {
 	DB        *database.Queries
-	Redis     *redis.Client
 	Platform  string
 	JwtSecret string
+	World     *world.World
 }
 
 func (cfg *ApiConfig) ServeApi() {

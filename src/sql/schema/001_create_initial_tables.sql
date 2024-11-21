@@ -51,17 +51,6 @@ CREATE TABLE items(
 	updated_at TIMESTAMP NOT NULL
 );
 
-CREATE TABLE spawned_items(
-	id UUID PRIMARY KEY,
-	inventory UUID NOT NULL,
-	position_x INTEGER NOT NULL,
-	position_y INTEGER NOT NULL,
-	quantity INTEGER NOT NULL,
-	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL,
-	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE 
-);
-
 CREATE TABLE inventories(
 	id UUID PRIMARY KEY,
 	user_id UUID,
@@ -72,16 +61,9 @@ CREATE TABLE inventories(
 	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE 
 );
 
-CREATE TABLE resources(
-	id UUID PRIMARY KEY,
-	name TEXT NOT NULL,
-	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL
-);
-
 CREATE TABLE resource_nodes(
 	id UUID PRIMARY KEY,
-	resource_id UUID NOT NULL,
+	name TEXT,
 	position_x INTEGER NOT NULL,
 	position_y INTEGER NOT NULL,
 	created_at TIMESTAMP NOT NULL,
@@ -89,9 +71,9 @@ CREATE TABLE resource_nodes(
 	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE 
 );
 
-CREATE TABLE resource_drops(
+CREATE TABLE resources(
 	id UUID PRIMARY KEY,
-	resource_id UUID NOT NULL,
+	resource_node_id UUID NOT NULL,
 	item_id UUID NOT NULL,
 	drop_chance DECIMAL NOT NULL,
 	created_at TIMESTAMP NOT NULL,
@@ -99,11 +81,9 @@ CREATE TABLE resource_drops(
 );
 
 -- +goose Down
-DROP TABLE resource_drops;
 DROP TABLE resource_nodes;
 DROP TABLE resources;
 DROP TABLE inventories;
-DROP TABLE spawned_items;
 DROP TABLE items;
 DROP TABLE characters;
 DROP TABLE actions;

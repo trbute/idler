@@ -2,13 +2,13 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/trbute/idler/internal/auth"
 	"github.com/trbute/idler/internal/database"
+	"github.com/trbute/idler/internal/world"
 )
 
 type Character struct {
@@ -44,8 +44,6 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return
 	}
-
-	fmt.Printf("%v \n", userID)
 
 	character, err := cfg.DB.CreateCharacter(r.Context(), database.CreateCharacterParams{
 		UserID: userID,
@@ -94,7 +92,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 
 	character, err := cfg.DB.GetCharacterByName(r.Context(), params.Name)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve user", err)
+		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
 		return
 	}
 
@@ -109,19 +107,31 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	character, err = cfg.DB.UpdateCharacterByID(r.Context(), database.UpdateCharacterByIDParams{
-		ID:       character.ID,
-		ActionID: action.ID,
-	})
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Database update failed", err)
-		return
+	playerCoords := world.Coord{
+		PositionX: character.PositionX,
+		PositionY: character.PositionY,
+	}
+
+	chars := cfg.World.Grid[playerCoords].Characters
+
+	var char *world.Character
+	var ok bool
+	char, ok = chars[character.Name]
+	if ok {
+		char.ActionId = action.ID
+		char.LastActionAt = time.Now()
+	} else {
+		char = &world.Character{
+			Name:         character.Name,
+			ActionId:     action.ID,
+			Inventory:    world.Inventory{},
+			LastActionAt: time.Now(),
+		}
+		chars[character.Name] = char
 	}
 
 	respondWithJSON(w, http.StatusOK, Character{
-		ID:        character.ID,
-		ActionID:  character.ActionID,
-		CreatedAt: character.CreatedAt,
-		UpdatedAt: character.UpdatedAt,
+		Name:     char.Name,
+		ActionID: char.ActionId,
 	})
 }

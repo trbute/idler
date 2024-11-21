@@ -63,36 +63,19 @@ type RefreshToken struct {
 }
 
 type Resource struct {
-	ID        uuid.UUID
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-type ResourceDrop struct {
-	ID         uuid.UUID
-	ResourceID uuid.UUID
-	ItemID     uuid.UUID
-	DropChance string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID             uuid.UUID
+	ResourceNodeID uuid.UUID
+	ItemID         uuid.UUID
+	DropChance     string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type ResourceNode struct {
-	ID         uuid.UUID
-	ResourceID uuid.UUID
-	PositionX  int32
-	PositionY  int32
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-}
-
-type SpawnedItem struct {
 	ID        uuid.UUID
-	Inventory uuid.UUID
+	Name      sql.NullString
 	PositionX int32
 	PositionY int32
-	Quantity  int32
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

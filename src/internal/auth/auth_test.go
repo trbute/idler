@@ -2,11 +2,12 @@ package auth
 
 import (
 	"errors"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 func TestMakeAndValidateJWT(t *testing.T) {
