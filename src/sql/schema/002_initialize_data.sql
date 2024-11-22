@@ -4,8 +4,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 INSERT INTO grid (position_x, position_y, created_at, updated_at)
 VALUES (0, 0, NOW(), NOW());
 
-INSERT INTO resource_nodes (id, name, position_x, position_y, created_at, updated_at)
-VALUES (uuid_generate_v4(), 'BALSA TREE', 0, 0, NOW(), NOW());
+INSERT INTO actions (id, name, created_at, updated_at) 
+VALUES 
+	(0, 'IDLE', NOW(), NOW()),
+	(1, 'WOODCUTTING', NOW(), NOW());
+
+INSERT INTO resource_nodes (id, name, action_id, position_x, position_y, created_at, updated_at)
+VALUES (uuid_generate_v4(), 'BALSA TREE', 1, 0, 0, NOW(), NOW());
 
 INSERT INTO items (id, name, created_at, updated_at)
 VALUES (uuid_generate_v4(), 'BALSA WOOD', Now(), Now());
@@ -20,10 +25,6 @@ VALUES (
 	NOW()
 );
 
-INSERT INTO actions (id, name, created_at, updated_at) 
-VALUES 
-	(0, 'IDLE', NOW(), NOW()),
-	(1, 'WOODCUTTING', NOW(), NOW());
 
 -- +goose Down
 DELETE FROM actions WHERE id in (0, 1);

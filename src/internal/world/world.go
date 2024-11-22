@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/internal/database"
 )
 
@@ -14,21 +15,25 @@ type WorldConfig struct {
 	DB       *database.Queries
 	Platform string
 	TickRate time.Duration
+	Seed     *rand.Rand
 	World    *World
 }
 
 type Item struct {
-	ID   uuid.UUID
-	Name string
+	ID       pgtype.UUID
+	Name     string
+	Quantity int32
 }
 
 type Inventory struct {
-	Items []Item
+	InventoryID pgtype.UUID
+	Items       map[string]*Item
 }
 
 type Character struct {
 	Name         string
 	ActionId     int32
+	ActionTarget string
 	Inventory    Inventory
 	LastActionAt time.Time
 }
@@ -40,6 +45,7 @@ type Resource struct {
 
 type ResourceNode struct {
 	Name      string
+	ActionID  int32
 	Resources []Resource
 }
 
@@ -52,7 +58,7 @@ type Cell struct {
 	PositionX     int32
 	PositionY     int32
 	Characters    map[string]*Character
-	ResourceNodes []ResourceNode
+	ResourceNodes map[string]ResourceNode
 }
 
 type World struct {
@@ -94,14 +100,8 @@ func (cfg *WorldConfig) GetWorld() *World {
 
 	for _, resourceNodeRecord := range resourceNodeRecords {
 		resourceNodeItem := ResourceNode{}
-		var resourceNodeName string
-		if resourceNodeRecord.Name.Valid {
-			resourceNodeName = resourceNodeRecord.Name.String
-		} else {
-			log.Fatalf("Resource node record name is not a valid string")
-		}
-
-		resourceNodeItem.Name = resourceNodeName
+		resourceNodeItem.Name = resourceNodeRecord.Name.String
+		resourceNodeItem.ActionID = resourceNodeRecord.ActionID
 
 		key := Coord{
 			resourceNodeRecord.PositionX,
@@ -116,17 +116,14 @@ func (cfg *WorldConfig) GetWorld() *World {
 		for _, resourceRecord := range resourceRecords {
 			resourceItem := Resource{}
 			resourceItem.DropChance = resourceRecord.DropChance
-			if err != nil {
-				log.Fatalf("Failed to parse drop chance as float: %v", err)
-			}
 
-			itemItem := Item{}
 			itemRecord, err := cfg.DB.GetItemByResourceId(ctx, resourceRecord.ID)
 			if err != nil {
 				log.Fatalf("Failed to get resources: %v", err)
 			}
 
-			itemItem.ID = uuid.UUID(itemRecord.ID.Bytes)
+			itemItem := Item{}
+			itemItem.ID = itemRecord.ID
 			itemItem.Name = itemRecord.Name
 			resourceItem.Item = itemItem
 
@@ -135,7 +132,8 @@ func (cfg *WorldConfig) GetWorld() *World {
 		}
 
 		gridCell := world.Grid[key]
-		gridCell.ResourceNodes = append(gridCell.ResourceNodes, resourceNodeItem)
+		gridCell.ResourceNodes = make(map[string]ResourceNode)
+		gridCell.ResourceNodes[resourceNodeItem.Name] = resourceNodeItem
 		world.Grid[key] = gridCell
 	}
 

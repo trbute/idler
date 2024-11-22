@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -59,6 +60,24 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	_, err = cfg.DB.CreateInventory(
+		r.Context(),
+		database.CreateInventoryParams{
+			CharacterID: character.ID,
+			PositionX:   character.PositionX,
+			PositionY:   character.PositionY,
+		},
+	)
+	if err != nil {
+		respondWithError(
+			w,
+			http.StatusInternalServerError,
+			"Character inventory creation failed",
+			err,
+		)
+		return
+	}
+
 	respondWithJSON(w, http.StatusCreated, Character{
 		ID:        character.ID,
 		UserID:    character.UserID,
@@ -71,8 +90,9 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 
 func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Request) {
 	type Parameters struct {
-		Name     string `json:"name"`
-		ActionID int32  `json:"action_id"`
+		Name         string `json:"name"`
+		ActionID     int32  `json:"action_id"`
+		ActionTarget string `json:"action_target"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -101,17 +121,30 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userUUID := pgtype.UUID{
+	resourceNodes := cfg.World.Grid[world.Coord{PositionX: character.PositionX, PositionY: character.PositionY}].ResourceNodes
+	var ok bool
+	node, ok := resourceNodes[params.ActionTarget]
+	if !ok {
+		respondWithError(w, http.StatusInternalServerError, "Unable to find target node", err)
+		return
+	}
+
+	if node.ActionID != params.ActionID {
+		respondWithError(w, http.StatusBadRequest, "Can't do that to this node type", err)
+		return
+	}
+
+	pgUserID := pgtype.UUID{
 		Bytes: userID,
 		Valid: true,
 	}
 
-	if character.UserID != userUUID {
+	if character.UserID != pgUserID {
 		respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", err)
 		return
 	}
 
-	action, err := cfg.DB.GetActionByID(r.Context(), params.ActionID)
+	action, err := cfg.DB.GetActionById(r.Context(), params.ActionID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve action", err)
 		return
@@ -125,20 +158,61 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 	chars := cfg.World.Grid[playerCoords].Characters
 
 	var char *world.Character
-	var ok bool
 	char, ok = chars[character.Name]
-	if ok {
-		char.ActionId = action.ID
-		char.LastActionAt = time.Now()
-	} else {
+	if !ok {
+		inventoryRecord, err := cfg.DB.GetInventoryByUserId(context.Background(), character.ID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Unable to retrieve inventory", err)
+			return
+		}
+
+		inventoryItems, err := cfg.DB.GetInventoryItemsByInventoryId(
+			context.Background(),
+			inventoryRecord.ID,
+		)
+		if err != nil {
+			respondWithError(
+				w,
+				http.StatusInternalServerError,
+				"Unable to retrieve inventory items",
+				err,
+			)
+			return
+		}
+
+		charInventory := world.Inventory{Items: make(map[string]*world.Item)}
+		charInventory.InventoryID = inventoryRecord.ID
+		for _, inventoryItem := range inventoryItems {
+			item, err := cfg.DB.GetItemById(context.Background(), inventoryItem.ItemID)
+			if err != nil {
+				respondWithError(
+					w,
+					http.StatusInternalServerError,
+					"Unable to retrieve inventory items",
+					err,
+				)
+				return
+			}
+
+			charInventory.Items[item.Name] = &world.Item{
+				ID:       item.ID,
+				Name:     item.Name,
+				Quantity: inventoryItem.Quantity,
+			}
+		}
+
 		char = &world.Character{
 			Name:         character.Name,
 			ActionId:     action.ID,
-			Inventory:    world.Inventory{},
+			ActionTarget: params.ActionTarget,
+			Inventory:    charInventory,
 			LastActionAt: time.Now(),
 		}
 		chars[character.Name] = char
 	}
+
+	char.ActionId = action.ID
+	char.LastActionAt = time.Now()
 
 	respondWithJSON(w, http.StatusOK, Character{
 		Name:     char.Name,

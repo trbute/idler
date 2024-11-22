@@ -12,22 +12,30 @@ import (
 )
 
 const createInventory = `-- name: CreateInventory :one
-INSERT INTO inventories(id, user_id, created_at, updated_at)
+INSERT INTO inventories(id, character_id, position_x, position_y, created_at, updated_at)
 VALUES (
 	gen_random_uuid(),
 	$1,
+	$2,
+	$3,
 	NOW(),
 	NOW()
 )
-RETURNING id, user_id, position_x, position_y, created_at, updated_at
+RETURNING id, character_id, position_x, position_y, created_at, updated_at
 `
 
-func (q *Queries) CreateInventory(ctx context.Context, userID pgtype.UUID) (Inventory, error) {
-	row := q.db.QueryRow(ctx, createInventory, userID)
+type CreateInventoryParams struct {
+	CharacterID pgtype.UUID
+	PositionX   int32
+	PositionY   int32
+}
+
+func (q *Queries) CreateInventory(ctx context.Context, arg CreateInventoryParams) (Inventory, error) {
+	row := q.db.QueryRow(ctx, createInventory, arg.CharacterID, arg.PositionX, arg.PositionY)
 	var i Inventory
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
+		&i.CharacterID,
 		&i.PositionX,
 		&i.PositionY,
 		&i.CreatedAt,
@@ -37,7 +45,7 @@ func (q *Queries) CreateInventory(ctx context.Context, userID pgtype.UUID) (Inve
 }
 
 const getInventory = `-- name: GetInventory :one
-SELECT id, user_id, position_x, position_y, created_at, updated_at from inventories
+SELECT id, character_id, position_x, position_y, created_at, updated_at FROM inventories
 WHERE id = $1
 `
 
@@ -46,7 +54,26 @@ func (q *Queries) GetInventory(ctx context.Context, id pgtype.UUID) (Inventory, 
 	var i Inventory
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
+		&i.CharacterID,
+		&i.PositionX,
+		&i.PositionY,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getInventoryByUserId = `-- name: GetInventoryByUserId :one
+SELECT id, character_id, position_x, position_y, created_at, updated_at FROM inventories
+WHERE character_id = $1
+`
+
+func (q *Queries) GetInventoryByUserId(ctx context.Context, characterID pgtype.UUID) (Inventory, error) {
+	row := q.db.QueryRow(ctx, getInventoryByUserId, characterID)
+	var i Inventory
+	err := row.Scan(
+		&i.ID,
+		&i.CharacterID,
 		&i.PositionX,
 		&i.PositionY,
 		&i.CreatedAt,

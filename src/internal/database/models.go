@@ -35,12 +35,21 @@ type Grid struct {
 }
 
 type Inventory struct {
-	ID        pgtype.UUID
-	UserID    pgtype.UUID
-	PositionX int32
-	PositionY int32
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
+	ID          pgtype.UUID
+	CharacterID pgtype.UUID
+	PositionX   int32
+	PositionY   int32
+	CreatedAt   pgtype.Timestamp
+	UpdatedAt   pgtype.Timestamp
+}
+
+type InventoryItem struct {
+	ID          pgtype.UUID
+	ItemID      pgtype.UUID
+	InventoryID pgtype.UUID
+	Quantity    int32
+	CreatedAt   pgtype.Timestamp
+	UpdatedAt   pgtype.Timestamp
 }
 
 type Item struct {
@@ -71,6 +80,7 @@ type Resource struct {
 type ResourceNode struct {
 	ID        pgtype.UUID
 	Name      pgtype.Text
+	ActionID  int32
 	PositionX int32
 	PositionY int32
 	CreatedAt pgtype.Timestamp

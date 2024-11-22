@@ -1,4 +1,4 @@
--- name: GetActionByID :one
+-- name: GetActionById :one
 SELECT * FROM actions
 WHERE id = $1;
 

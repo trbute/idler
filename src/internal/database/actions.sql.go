@@ -9,13 +9,13 @@ import (
 	"context"
 )
 
-const getActionByID = `-- name: GetActionByID :one
+const getActionById = `-- name: GetActionById :one
 SELECT id, name, created_at, updated_at FROM actions
 WHERE id = $1
 `
 
-func (q *Queries) GetActionByID(ctx context.Context, id int32) (Action, error) {
-	row := q.db.QueryRow(ctx, getActionByID, id)
+func (q *Queries) GetActionById(ctx context.Context, id int32) (Action, error) {
+	row := q.db.QueryRow(ctx, getActionById, id)
 	var i Action
 	err := row.Scan(
 		&i.ID,

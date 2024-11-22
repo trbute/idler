@@ -89,7 +89,7 @@ func (q *Queries) GetCharacterByName(ctx context.Context, name string) (Characte
 	return i, err
 }
 
-const updateCharacterByID = `-- name: UpdateCharacterByID :one
+const updateCharacterById = `-- name: UpdateCharacterById :one
 UPDATE characters
 SET action_id = $1, 
 	updated_at = NOW()
@@ -97,13 +97,13 @@ WHERE id = $2
 RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at
 `
 
-type UpdateCharacterByIDParams struct {
+type UpdateCharacterByIdParams struct {
 	ActionID int32
 	ID       pgtype.UUID
 }
 
-func (q *Queries) UpdateCharacterByID(ctx context.Context, arg UpdateCharacterByIDParams) (Character, error) {
-	row := q.db.QueryRow(ctx, updateCharacterByID, arg.ActionID, arg.ID)
+func (q *Queries) UpdateCharacterById(ctx context.Context, arg UpdateCharacterByIdParams) (Character, error) {
+	row := q.db.QueryRow(ctx, updateCharacterById, arg.ActionID, arg.ID)
 	var i Character
 	err := row.Scan(
 		&i.ID,

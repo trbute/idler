@@ -17,7 +17,7 @@ WHERE id = $1;
 SELECT * from characters
 where name = $1;
 
--- name: UpdateCharacterByID :one
+-- name: UpdateCharacterById :one
 UPDATE characters
 SET action_id = $1, 
 	updated_at = NOW()

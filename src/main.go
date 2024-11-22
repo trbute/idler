@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -51,11 +52,13 @@ func main() {
 
 	tickInt, err := strconv.Atoi(os.Getenv("TICK_MS"))
 	tickRate := time.Duration(time.Duration(tickInt) * time.Millisecond)
+	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	worldCfg := world.WorldConfig{
 		DB:       DbConn,
 		Platform: platform,
 		TickRate: tickRate,
+		Seed:     seed,
 	}
 
 	world := worldCfg.GetWorld()

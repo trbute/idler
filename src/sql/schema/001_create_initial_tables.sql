@@ -53,22 +53,37 @@ CREATE TABLE items(
 
 CREATE TABLE inventories(
 	id UUID PRIMARY KEY,
-	user_id UUID,
+	character_id UUID,
 	position_x INTEGER NOT NULL,
 	position_y INTEGER NOT NULL,
 	created_at TIMESTAMP NOT NULL,
 	updated_at TIMESTAMP NOT NULL,
-	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE 
+	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE,
+	FOREIGN KEY (character_id) REFERENCES characters (id) ON DELETE CASCADE 
+);
+
+CREATE TABLE inventory_items(
+	id UUID PRIMARY KEY,
+	item_id UUID NOT NULL,
+	inventory_id UUID NOT NULL,
+	quantity INTEGER NOT NULL,
+	created_at TIMESTAMP NOT NULL,
+	updated_at TIMESTAMP NOT NULL,
+	FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE,
+	FOREIGN KEY (inventory_id) REFERENCES inventories (id) ON DELETE CASCADE,
+	UNIQUE(item_id, inventory_id)
 );
 
 CREATE TABLE resource_nodes(
 	id UUID PRIMARY KEY,
 	name TEXT,
+	action_id INTEGER NOT NULL,
 	position_x INTEGER NOT NULL,
 	position_y INTEGER NOT NULL,
 	created_at TIMESTAMP NOT NULL,
 	updated_at TIMESTAMP NOT NULL,	
-	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE 
+	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE, 
+	FOREIGN KEY (action_id) REFERENCES actions (id) ON DELETE CASCADE
 );
 
 CREATE TABLE resources(
@@ -77,12 +92,16 @@ CREATE TABLE resources(
 	item_id UUID NOT NULL,
 	drop_chance INTEGER NOT NULL,
 	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL
+	updated_at TIMESTAMP NOT NULL,
+	FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE,
+	FOREIGN KEY (resource_node_id) REFERENCES resource_nodes (id) ON DELETE CASCADE 
+
 );
 
 -- +goose Down
-DROP TABLE resource_nodes;
 DROP TABLE resources;
+DROP TABLE resource_nodes;
+DROP TABLE inventory_items;
 DROP TABLE inventories;
 DROP TABLE items;
 DROP TABLE characters;
