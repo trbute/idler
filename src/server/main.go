@@ -12,9 +12,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/trbute/idler/api"
-	"github.com/trbute/idler/internal/database"
-	"github.com/trbute/idler/internal/world"
+	"github.com/trbute/idler/server/api"
+	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/world"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/trbute/idler/internal/auth"
+	"github.com/trbute/idler/server/internal/auth"
 )
 
 func (cfg *ApiConfig) handleRevoke(w http.ResponseWriter, r *http.Request) {

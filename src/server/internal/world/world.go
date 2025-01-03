@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/trbute/idler/internal/database"
+	"github.com/trbute/idler/server/internal/database"
 )
 
 type WorldConfig struct {

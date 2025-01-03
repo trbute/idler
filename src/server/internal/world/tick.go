@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/trbute/idler/internal/database"
+	"github.com/trbute/idler/server/internal/database"
 )
 
 func (cfg *WorldConfig) ProcessTicks() {

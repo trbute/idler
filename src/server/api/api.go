@@ -3,8 +3,8 @@ package api
 import (
 	"net/http"
 
-	"github.com/trbute/idler/internal/database"
-	"github.com/trbute/idler/internal/world"
+	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/world"
 )
 
 type ApiConfig struct {

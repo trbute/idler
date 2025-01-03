@@ -7,10 +7,10 @@ RUN go mod download
 
 COPY src/. .
 
-RUN GOOS=linux GOARCH=amd64 go build -o idler .
+RUN GOOS=linux GOARCH=amd64 go build -o server ./server
 
 FROM alpine:latest
 WORKDIR /root/
-COPY --from=builder /src/idler .
+COPY --from=builder /src/server .
 
 EXPOSE 8080

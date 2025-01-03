@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/trbute/idler/internal/auth"
+	"github.com/trbute/idler/server/internal/auth"
 )
 
 type RefreshResponse struct {

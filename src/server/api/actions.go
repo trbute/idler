@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/trbute/idler/internal/auth"
+	"github.com/trbute/idler/server/internal/auth"
 )
 
 type Action struct {

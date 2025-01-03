@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/trbute/idler/internal/auth"
-	"github.com/trbute/idler/internal/database"
-	"github.com/trbute/idler/internal/world"
+	"github.com/trbute/idler/server/internal/auth"
+	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/world"
 )
 
 type Character struct {

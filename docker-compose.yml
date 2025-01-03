@@ -34,7 +34,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
     ports:
       - "8080:8080"
-    command: ./idler
+    command: ./server
 
   migrate:
     image: golang:1.23.3
@@ -47,7 +47,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
     volumes:
-      - ./src/sql/schema:/migrations
+      - ./src/server/sql/schema:/migrations
     entrypoint:
       [
         "/bin/sh",
