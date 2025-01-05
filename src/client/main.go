@@ -58,12 +58,18 @@ func main() {
 
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	renderer := bubbletea.MakeRenderer(s)
-	m := baseModel{
-		currentPage: Login,
-		renderer:    renderer,
-		login:       InitLoginModel(renderer),
-		signup:      InitSignupModel(renderer),
+	style := style{
+		renderer: renderer,
 	}
+	state := sharedState{}
+	state.style = &style
+	state.currentPage = Login
+
+	m := baseModel{}
+	m.sharedState = &state
+	m.login = InitLoginModel(&state)
+	m.signup = InitSignupModel(&state)
+	m.ui = InitUIModel(&state)
 
 	return m, []tea.ProgramOption{tea.WithAltScreen()}
 }

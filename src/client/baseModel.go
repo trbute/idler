@@ -2,7 +2,6 @@ package main
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
 )
 
 type Page int
@@ -10,19 +9,28 @@ type Page int
 const (
 	Login Page = iota
 	Signup
+	UI
 )
 
-type newPageMsg struct {
-	page Page
+type apiResMsg struct {
+	color Color
+	text  string
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+type sharedState struct {
+	*style
+	currentPage Page
 }
 
 type baseModel struct {
-	currentPage Page
-	height      int
-	width       int
-	login       *loginModel
-	signup      *signupModel
-	renderer    *lg.Renderer
+	*sharedState
+	login  *loginModel
+	signup *signupModel
+	ui     *uiModel
 }
 
 func (m baseModel) Init() tea.Cmd {
@@ -32,8 +40,6 @@ func (m baseModel) Init() tea.Cmd {
 func (m baseModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
-	case newPageMsg:
-		m.currentPage = msg.page
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
@@ -49,6 +55,8 @@ func (m baseModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.login.Update(msg)
 	case Signup:
 		cmd = m.signup.Update(msg)
+	case UI:
+		cmd = m.ui.Update(msg)
 	}
 
 	return m, cmd
@@ -61,13 +69,11 @@ func (m baseModel) View() string {
 		s = m.login.View()
 	case Signup:
 		s = m.signup.View()
+	case UI:
+		s = m.ui.View()
 	default:
 		s = "Invalid View"
 	}
 
-	return m.renderer.NewStyle().Width(m.width).
-		Height(m.height).
-		Align(lg.Center).
-		AlignVertical(lg.Center).
-		Render(s)
+	return s
 }
