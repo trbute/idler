@@ -160,7 +160,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 	var char *world.Character
 	char, ok = chars[character.Name]
 	if !ok {
-		inventoryRecord, err := cfg.DB.GetInventoryByUserId(context.Background(), character.ID)
+		inventoryRecord, err := cfg.DB.GetInventoryByCharacterId(context.Background(), character.ID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Unable to retrieve inventory", err)
 			return

@@ -11,6 +11,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type uiModel struct {
@@ -20,6 +22,21 @@ type uiModel struct {
 	vpContent    strings.Builder
 	selectedChar string
 	cursor       int
+}
+
+type characterData struct {
+	CharacterName string `json:"character_name"`
+	ActionName    string `json:"action_name"`
+	ActionTarget  string `json:"action_target"`
+}
+
+type senseAreaResponse struct {
+	Characters    []characterData `json:"characters"`
+	ResourceNodes []string        `json:"resource_nodes"`
+}
+
+type inventoryResponse struct {
+	Items map[string]int32 `json:"items"`
 }
 
 func InitUIModel(state *sharedState) *uiModel {
@@ -57,6 +74,7 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 		output := m.colorStyle(msg.text, msg.color)
 		m.vpContent.WriteString(output + "\n")
 		m.viewport.SetContent(m.vpContent.String())
+		m.viewport.GotoBottom()
 		m.input.SetValue("")
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -81,15 +99,22 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 				var output string
 				var outputColor Color
 				switch command[0] {
-				case "chop":
-					return m.setAction(m.selectedChar, "WOODCUTTING", strings.ToUpper(strings.Join(command[1:], " ")))
-				case "select_char":
+				case "wc":
+					return m.setAction(
+						"WOODCUTTING",
+						strings.ToUpper(strings.Join(command[1:], " ")),
+					)
+				case "sense":
+					return m.getArea()
+				case "inv":
+					return m.getInventory()
+				case "sel":
 					m.selectedChar = command[1]
-					output = fmt.Sprintf("selected character:\"%v\"", m.selectedChar)
+					output = fmt.Sprintf("Selected %v", m.selectedChar)
 					outputColor = Green
-				case "create_char":
+				case "newchar":
 					if len(command) > 2 {
-						output = fmt.Sprintf("too many arguments for \"%v\" command", command[0])
+						output = fmt.Sprintf("Too many arguments for \"%v\" command", command[0])
 						outputColor = Red
 					} else {
 						return m.createCharacter(command[1])
@@ -98,7 +123,7 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 					output = strings.Join(command[1:], " ")
 					outputColor = Green
 				default:
-					output = fmt.Sprintf("command \"%v\" not found", command[0])
+					output = fmt.Sprintf("Command \"%v\" not found", command[0])
 					outputColor = Red
 				}
 
@@ -106,6 +131,7 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 
 				m.vpContent.WriteString(output + "\n")
 				m.viewport.SetContent(m.vpContent.String())
+				m.viewport.GotoBottom()
 				m.input.SetValue("")
 			}
 		}
@@ -184,10 +210,10 @@ func (m *uiModel) createCharacter(charName string) tea.Cmd {
 	}
 }
 
-func (m *uiModel) setAction(charName string, actionName string, target string) tea.Cmd {
+func (m *uiModel) setAction(actionName string, target string) tea.Cmd {
 	return func() tea.Msg {
 		data := map[string]string{
-			"character_name": charName,
+			"character_name": m.selectedChar,
 			"action_name":    actionName,
 			"target":         target,
 		}
@@ -214,6 +240,7 @@ func (m *uiModel) setAction(charName string, actionName string, target string) t
 		if err != nil {
 			return apiResMsg{Red, err.Error()}
 		}
+
 		defer res.Body.Close()
 
 		body, err := io.ReadAll(res.Body)
@@ -221,11 +248,18 @@ func (m *uiModel) setAction(charName string, actionName string, target string) t
 			return apiResMsg{Red, err.Error()}
 		}
 
-		bodyStr := string(body)
+		bodyStr := ""
 		resColor := Red
 		if res.StatusCode == 201 {
+			caser := cases.Title(language.English)
 			resColor = Green
-			bodyStr = "Started choppin wood"
+			bodyStr = fmt.Sprintf(
+				"%v started %v on %v",
+				caser.String(m.selectedChar),
+				caser.String(actionName),
+				caser.String(target),
+			)
+
 		} else {
 			resColor = Red
 			var errResp ErrorResponse
@@ -234,6 +268,140 @@ func (m *uiModel) setAction(charName string, actionName string, target string) t
 			} else {
 				bodyStr = errResp.Error
 			}
+		}
+
+		return apiResMsg{resColor, bodyStr}
+	}
+}
+
+func (m *uiModel) getArea() tea.Cmd {
+	return func() tea.Msg {
+		bodyStr := ""
+		if m.selectedChar == "" {
+			return apiResMsg{Red, "No character selected"}
+		}
+
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("http://127.0.0.1:8080/api/sense/area/%v", m.selectedChar),
+			nil,
+		)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+m.userToken)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		resColor := Red
+		if res.StatusCode == 200 {
+			resColor = Green
+			caser := cases.Title(language.English)
+			var res senseAreaResponse
+			if err := json.Unmarshal(body, &res); err != nil {
+				bodyStr = err.Error()
+			} else {
+				bodyStr = "\n"
+				if len(res.Characters) > 0 {
+					bodyStr += fmt.Sprint("Characters\n")
+					for _, value := range res.Characters {
+						bodyStr += fmt.Sprintf(
+							"\t%v is %v at %v\n",
+							value.CharacterName,
+							caser.String(value.ActionName),
+							caser.String(value.ActionTarget),
+						)
+					}
+				}
+
+				if len(res.ResourceNodes) > 0 {
+					bodyStr += fmt.Sprint("Resources\n")
+					for _, value := range res.ResourceNodes {
+						resource := caser.String(value)
+						bodyStr += fmt.Sprintf("\t%v\n", resource)
+					}
+				}
+			}
+		} else {
+			resColor = Red
+			var errResp ErrorResponse
+			if err := json.Unmarshal(body, &errResp); err != nil {
+				bodyStr = err.Error()
+			} else {
+				bodyStr = errResp.Error
+			}
+		}
+
+		return apiResMsg{resColor, bodyStr}
+	}
+}
+
+func (m *uiModel) getInventory() tea.Cmd {
+	return func() tea.Msg {
+		bodyStr := ""
+		if m.selectedChar == "" {
+			return apiResMsg{Red, "No character selected"}
+		}
+
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("http://127.0.0.1:8080/api/inventory/%v", m.selectedChar),
+			nil,
+		)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+m.userToken)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		resColor := Red
+		if res.StatusCode == 200 {
+			resColor = Green
+			caser := cases.Title(language.English)
+			var res inventoryResponse
+			if err := json.Unmarshal(body, &res); err != nil {
+				bodyStr = err.Error()
+			} else {
+				bodyStr = "\n"
+				if len(res.Items) > 0 {
+					bodyStr += fmt.Sprint("Inventory\n")
+					for name, quantity := range res.Items {
+						bodyStr += fmt.Sprintf(
+							"\t%v: %v\n",
+							caser.String(name),
+							quantity,
+						)
+					}
+				}
+			}
+		} else {
+			resColor = Red
+			bodyStr = fmt.Sprintf("Inventory get failed for %v", m.selectedChar)
 		}
 
 		return apiResMsg{resColor, bodyStr}

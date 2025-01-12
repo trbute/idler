@@ -63,13 +63,13 @@ func (q *Queries) GetInventory(ctx context.Context, id pgtype.UUID) (Inventory, 
 	return i, err
 }
 
-const getInventoryByUserId = `-- name: GetInventoryByUserId :one
+const getInventoryByCharacterId = `-- name: GetInventoryByCharacterId :one
 SELECT id, character_id, position_x, position_y, created_at, updated_at FROM inventories
 WHERE character_id = $1
 `
 
-func (q *Queries) GetInventoryByUserId(ctx context.Context, characterID pgtype.UUID) (Inventory, error) {
-	row := q.db.QueryRow(ctx, getInventoryByUserId, characterID)
+func (q *Queries) GetInventoryByCharacterId(ctx context.Context, characterID pgtype.UUID) (Inventory, error) {
+	row := q.db.QueryRow(ctx, getInventoryByCharacterId, characterID)
 	var i Inventory
 	err := row.Scan(
 		&i.ID,

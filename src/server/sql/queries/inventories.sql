@@ -14,6 +14,6 @@ RETURNING *;
 SELECT * FROM inventories
 WHERE id = $1;
 
--- name: GetInventoryByUserId :one
+-- name: GetInventoryByCharacterId :one
 SELECT * FROM inventories
 WHERE character_id = $1;
