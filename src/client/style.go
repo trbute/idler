@@ -28,13 +28,12 @@ func (s style) centerStyle(str string) string {
 		Render(str)
 }
 
-func (s style) borderStyle(str string, color Color) string {
+func (s style) borderStyle(str string, color Color, width int) string {
 	return s.renderer.
 		NewStyle().
-		Width(30).
+		Width(width).
 		Border(lg.RoundedBorder()).
 		BorderForeground(lg.Color(color)).
-		Padding(1).
 		Align(lg.Center).
 		AlignVertical(lg.Center).
 		Render(str)
@@ -45,4 +44,27 @@ func (s style) colorStyle(str string, color Color) string {
 		NewStyle().
 		Foreground(lg.Color(color)).
 		Render(str)
+}
+
+func (s style) viewportStyle(str string, borderColor Color) string {
+	return s.renderer.NewStyle().
+		Height(s.height - 5).
+		Width(s.width - 2).
+		Border(lg.RoundedBorder()).
+		BorderForeground(lg.Color(borderColor)).Render(str)
+}
+
+func (s style) inputStyle(str string, borderColor Color) string {
+	return s.renderer.NewStyle().
+		Width(s.width - 2).
+		Border(lg.RoundedBorder()).
+		BorderForeground(lg.Color(borderColor)).Render(str)
+}
+
+func (s style) uiView(viewport string, input string) string {
+	return lg.JoinVertical(
+		lg.Left,
+		viewport,
+		input,
+	)
 }

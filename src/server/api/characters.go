@@ -90,9 +90,9 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 
 func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Request) {
 	type Parameters struct {
-		Name         string `json:"name"`
-		ActionID     int32  `json:"action_id"`
-		ActionTarget string `json:"action_target"`
+		CharacterName string `json:"character_name"`
+		ActionName    string `json:"action_name"`
+		Target        string `json:"target"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -115,7 +115,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	character, err := cfg.DB.GetCharacterByName(r.Context(), params.Name)
+	character, err := cfg.DB.GetCharacterByName(r.Context(), params.CharacterName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
 		return
@@ -123,13 +123,19 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 
 	resourceNodes := cfg.World.Grid[world.Coord{PositionX: character.PositionX, PositionY: character.PositionY}].ResourceNodes
 	var ok bool
-	node, ok := resourceNodes[params.ActionTarget]
+	node, ok := resourceNodes[params.Target]
 	if !ok {
 		respondWithError(w, http.StatusInternalServerError, "Unable to find target node", err)
 		return
 	}
 
-	if node.ActionID != params.ActionID {
+	action, err := cfg.DB.GetActionByName(r.Context(), params.ActionName)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve action", err)
+		return
+	}
+
+	if node.ActionID != action.ID {
 		respondWithError(w, http.StatusBadRequest, "Can't do that to this node type", err)
 		return
 	}
@@ -141,12 +147,6 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 
 	if character.UserID != pgUserID {
 		respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", err)
-		return
-	}
-
-	action, err := cfg.DB.GetActionById(r.Context(), params.ActionID)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve action", err)
 		return
 	}
 
@@ -204,7 +204,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		char = &world.Character{
 			Name:         character.Name,
 			ActionId:     action.ID,
-			ActionTarget: params.ActionTarget,
+			ActionTarget: params.Target,
 			Inventory:    charInventory,
 			LastActionAt: time.Now(),
 		}
@@ -214,7 +214,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 	char.ActionId = action.ID
 	char.LastActionAt = time.Now()
 
-	respondWithJSON(w, http.StatusOK, Character{
+	respondWithJSON(w, http.StatusCreated, Character{
 		Name:     char.Name,
 		ActionID: char.ActionId,
 	})

@@ -121,7 +121,7 @@ func (m *signupModel) View() string {
 	lines = append(lines, m.colorStyle(m.login, getColor(len(m.fields)+1)))
 	lines = append(lines, m.colorStyle(m.subText, m.subTextColor))
 
-	return m.centerStyle(m.borderStyle(strings.Join(lines, "\n"), Magenta))
+	return m.centerStyle(m.borderStyle(strings.Join(lines, "\n"), Magenta, 30))
 }
 
 func (m *signupModel) createUser() tea.Cmd {

@@ -11,6 +11,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type loginResult struct {
+	ID           string `json:"id"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	Email        string `json:"email"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 type loginModel struct {
 	*sharedState
 	fields       []textinput.Model
@@ -111,7 +120,7 @@ func (m *loginModel) View() string {
 	lines = append(lines, m.colorStyle(m.signup, getColor(len(m.fields)+1)))
 	lines = append(lines, m.colorStyle(m.subText, m.subTextColor))
 
-	return m.centerStyle(m.borderStyle(strings.Join(lines, "\n"), Magenta))
+	return m.centerStyle(m.borderStyle(strings.Join(lines, "\n"), Magenta, 30))
 }
 
 func (m *loginModel) loginUser() tea.Cmd {
@@ -149,21 +158,29 @@ func (m *loginModel) loginUser() tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		bodyStr := string(body)
+		var loginRes loginResult
+		err = json.Unmarshal(body, &loginRes)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		m.userToken = loginRes.Token
+
+		var resStr string
 		resColor := Red
 		if res.StatusCode == 200 {
 			resColor = Green
-			bodyStr = "Login Successful"
+			resStr = "Login Successful"
 		} else {
 			resColor = Red
 			var errResp ErrorResponse
 			if err := json.Unmarshal(body, &errResp); err != nil {
-				bodyStr = "Failed to parse error response"
+				resStr = "Failed to parse error response"
 			} else {
-				bodyStr = errResp.Error
+				resStr = errResp.Error
 			}
 		}
 
-		return apiResMsg{resColor, bodyStr}
+		return apiResMsg{resColor, resStr}
 	}
 }

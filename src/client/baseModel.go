@@ -24,6 +24,7 @@ type ErrorResponse struct {
 type sharedState struct {
 	*style
 	currentPage Page
+	userToken   string
 }
 
 type baseModel struct {
