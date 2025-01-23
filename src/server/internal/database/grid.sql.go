@@ -10,7 +10,7 @@ import (
 )
 
 const getGrid = `-- name: GetGrid :many
-SELECT position_x, position_y, created_at, updated_at FROM grid
+SELECT position_x, position_y FROM grid
 `
 
 func (q *Queries) GetGrid(ctx context.Context) ([]Grid, error) {
@@ -22,12 +22,7 @@ func (q *Queries) GetGrid(ctx context.Context) ([]Grid, error) {
 	var items []Grid
 	for rows.Next() {
 		var i Grid
-		if err := rows.Scan(
-			&i.PositionX,
-			&i.PositionY,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		if err := rows.Scan(&i.PositionX, &i.PositionY); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

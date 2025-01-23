@@ -7,8 +7,6 @@ package database
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getItemById = `-- name: GetItemById :one
@@ -16,7 +14,7 @@ SELECT id, name, created_at, updated_at FROM items
 WHERE id = $1
 `
 
-func (q *Queries) GetItemById(ctx context.Context, id pgtype.UUID) (Item, error) {
+func (q *Queries) GetItemById(ctx context.Context, id int32) (Item, error) {
 	row := q.db.QueryRow(ctx, getItemById, id)
 	var i Item
 	err := row.Scan(
@@ -33,7 +31,7 @@ SELECT id, name, created_at, updated_at FROM items
 WHERE id = (SELECT item_id FROM resources WHERE resources.id = $1)
 `
 
-func (q *Queries) GetItemByResourceId(ctx context.Context, id pgtype.UUID) (Item, error) {
+func (q *Queries) GetItemByResourceId(ctx context.Context, id int32) (Item, error) {
 	row := q.db.QueryRow(ctx, getItemByResourceId, id)
 	var i Item
 	err := row.Scan(

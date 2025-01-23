@@ -34,14 +34,6 @@ func (cfg *WorldConfig) processActions(coord Coord) {
 }
 
 func (cfg *WorldConfig) processWoodCutting(cell Cell, charName string, nodeName string) {
-	fmt.Printf(
-		"%v at %v, %v is choppin wood at %v\n",
-		charName,
-		cell.PositionX,
-		cell.PositionY,
-		nodeName,
-	)
-
 	drop := cfg.rollDrop(cell.ResourceNodes[nodeName].Resources)
 	charItems := cell.Characters[charName].Inventory.Items
 	_, ok := charItems[drop.Name]

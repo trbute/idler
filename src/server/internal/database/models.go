@@ -30,8 +30,6 @@ type Character struct {
 type Grid struct {
 	PositionX int32
 	PositionY int32
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
 }
 
 type Inventory struct {
@@ -45,7 +43,7 @@ type Inventory struct {
 
 type InventoryItem struct {
 	ID          pgtype.UUID
-	ItemID      pgtype.UUID
+	ItemID      int32
 	InventoryID pgtype.UUID
 	Quantity    int32
 	CreatedAt   pgtype.Timestamp
@@ -53,7 +51,7 @@ type InventoryItem struct {
 }
 
 type Item struct {
-	ID        pgtype.UUID
+	ID        int32
 	Name      string
 	CreatedAt pgtype.Timestamp
 	UpdatedAt pgtype.Timestamp
@@ -69,22 +67,24 @@ type RefreshToken struct {
 }
 
 type Resource struct {
-	ID             pgtype.UUID
-	ResourceNodeID pgtype.UUID
-	ItemID         pgtype.UUID
+	ID             int32
+	ResourceNodeID int32
+	ItemID         int32
 	DropChance     int32
-	CreatedAt      pgtype.Timestamp
-	UpdatedAt      pgtype.Timestamp
 }
 
 type ResourceNode struct {
-	ID        pgtype.UUID
-	Name      pgtype.Text
-	ActionID  int32
+	ID       int32
+	Name     pgtype.Text
+	ActionID int32
+	Tier     int32
+}
+
+type ResourceNodeSpawn struct {
+	ID        int32
+	NodeID    int32
 	PositionX int32
 	PositionY int32
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
 }
 
 type User struct {

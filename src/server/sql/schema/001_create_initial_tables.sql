@@ -2,8 +2,6 @@
 CREATE TABLE grid(
 	position_x INTEGER NOT NULL,
 	position_y INTEGER NOT NULL,
-	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL,
 	PRIMARY KEY (position_x, position_y) 
 );
 
@@ -45,7 +43,7 @@ CREATE TABLE characters(
 );
 
 CREATE TABLE items(
-	id UUID PRIMARY KEY,
+	id INTEGER PRIMARY KEY,
 	name TEXT NOT NULL,
 	created_at TIMESTAMP NOT NULL,
 	updated_at TIMESTAMP NOT NULL
@@ -64,7 +62,7 @@ CREATE TABLE inventories(
 
 CREATE TABLE inventory_items(
 	id UUID PRIMARY KEY,
-	item_id UUID NOT NULL,
+	item_id INTEGER NOT NULL,
 	inventory_id UUID NOT NULL,
 	quantity INTEGER NOT NULL,
 	created_at TIMESTAMP NOT NULL,
@@ -75,27 +73,30 @@ CREATE TABLE inventory_items(
 );
 
 CREATE TABLE resource_nodes(
-	id UUID PRIMARY KEY,
+	id INTEGER PRIMARY KEY,
 	name TEXT,
 	action_id INTEGER NOT NULL,
-	position_x INTEGER NOT NULL,
-	position_y INTEGER NOT NULL,
-	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL,	
-	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE, 
+	tier INTEGER NOT NULL,
 	FOREIGN KEY (action_id) REFERENCES actions (id) ON DELETE CASCADE
 );
 
 CREATE TABLE resources(
-	id UUID PRIMARY KEY,
-	resource_node_id UUID NOT NULL,
-	item_id UUID NOT NULL,
+	id INTEGER PRIMARY KEY,
+	resource_node_id INTEGER NOT NULL,
+	item_id INTEGER NOT NULL,
 	drop_chance INTEGER NOT NULL,
-	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL,
 	FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE,
 	FOREIGN KEY (resource_node_id) REFERENCES resource_nodes (id) ON DELETE CASCADE 
 
+);
+
+CREATE TABLE resource_node_spawns(
+	id INTEGER PRIMARY KEY,
+	node_id INTEGER NOT NULL,
+	position_x INTEGER NOT NULL,
+	position_y INTEGER NOT NULL,
+	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE, 
+	FOREIGN KEY (node_id) REFERENCES resource_nodes (id) ON DELETE CASCADE
 );
 
 -- +goose Down

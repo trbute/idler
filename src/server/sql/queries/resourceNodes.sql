@@ -1,2 +1,2 @@
--- name: GetResourceNodes :many
-SELECT * FROM resource_nodes;
+-- name: GetResourceNodeById :one
+SELECT * FROM resource_nodes WHERE id = $1;

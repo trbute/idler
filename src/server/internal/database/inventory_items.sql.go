@@ -24,7 +24,7 @@ RETURNING id, item_id, inventory_id, quantity, created_at, updated_at
 
 type AddItemsToInventoryParams struct {
 	InventoryID pgtype.UUID
-	ItemID      pgtype.UUID
+	ItemID      int32
 	Quantity    int32
 }
 

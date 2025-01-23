@@ -20,7 +20,7 @@ type WorldConfig struct {
 }
 
 type Item struct {
-	ID       pgtype.UUID
+	ID       int32
 	Name     string
 	Quantity int32
 }
@@ -93,22 +93,26 @@ func (cfg *WorldConfig) GetWorld() *World {
 		}
 	}
 
-	resourceNodeRecords, err := cfg.DB.GetResourceNodes(ctx)
+	resourceNodeSpawnRecords, err := cfg.DB.GetResourceNodeSpawns(ctx)
 	if err != nil {
 		log.Fatalf("Failed to get resource nodes: %v", err)
 	}
 
-	for _, resourceNodeRecord := range resourceNodeRecords {
+	for _, resourceNodeSpawnRecord := range resourceNodeSpawnRecords {
 		resourceNodeItem := ResourceNode{}
+		resourceNodeRecord, err := cfg.DB.GetResourceNodeById(ctx, resourceNodeSpawnRecord.ID)
+		if err != nil {
+			log.Fatalf("Failed to get resource nodes: %v", err)
+		}
 		resourceNodeItem.Name = resourceNodeRecord.Name.String
 		resourceNodeItem.ActionID = resourceNodeRecord.ActionID
 
 		key := Coord{
-			resourceNodeRecord.PositionX,
-			resourceNodeRecord.PositionY,
+			resourceNodeSpawnRecord.PositionX,
+			resourceNodeSpawnRecord.PositionY,
 		}
 
-		resourceRecords, err := cfg.DB.GetResourcesByNodeId(ctx, resourceNodeRecord.ID)
+		resourceRecords, err := cfg.DB.GetResourcesByNodeId(ctx, resourceNodeSpawnRecord.ID)
 		if err != nil {
 			log.Fatalf("Failed to get resources: %v", err)
 		}

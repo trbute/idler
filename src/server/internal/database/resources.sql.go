@@ -7,16 +7,14 @@ package database
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getResourcesByNodeId = `-- name: GetResourcesByNodeId :many
-SELECT id, resource_node_id, item_id, drop_chance, created_at, updated_at FROM resources
+SELECT id, resource_node_id, item_id, drop_chance FROM resources
 WHERE resource_node_id = $1
 `
 
-func (q *Queries) GetResourcesByNodeId(ctx context.Context, resourceNodeID pgtype.UUID) ([]Resource, error) {
+func (q *Queries) GetResourcesByNodeId(ctx context.Context, resourceNodeID int32) ([]Resource, error) {
 	rows, err := q.db.Query(ctx, getResourcesByNodeId, resourceNodeID)
 	if err != nil {
 		return nil, err
@@ -30,8 +28,6 @@ func (q *Queries) GetResourcesByNodeId(ctx context.Context, resourceNodeID pgtyp
 			&i.ResourceNodeID,
 			&i.ItemID,
 			&i.DropChance,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
