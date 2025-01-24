@@ -10,36 +10,26 @@ import (
 )
 
 const getActionById = `-- name: GetActionById :one
-SELECT id, name, created_at, updated_at FROM actions
+SELECT id, name FROM actions
 WHERE id = $1
 `
 
 func (q *Queries) GetActionById(ctx context.Context, id int32) (Action, error) {
 	row := q.db.QueryRow(ctx, getActionById, id)
 	var i Action
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
+	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
 
 const getActionByName = `-- name: GetActionByName :one
-SELECT id, name, created_at, updated_at FROM actions
+SELECT id, name FROM actions
 WHERE name = $1
 `
 
 func (q *Queries) GetActionByName(ctx context.Context, name string) (Action, error) {
 	row := q.db.QueryRow(ctx, getActionByName, name)
 	var i Action
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
+	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
 
@@ -47,20 +37,15 @@ const getAllActions = `-- name: GetAllActions :many
 SELECT id, name FROM actions
 `
 
-type GetAllActionsRow struct {
-	ID   int32
-	Name string
-}
-
-func (q *Queries) GetAllActions(ctx context.Context) ([]GetAllActionsRow, error) {
+func (q *Queries) GetAllActions(ctx context.Context) ([]Action, error) {
 	rows, err := q.db.Query(ctx, getAllActions)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetAllActionsRow
+	var items []Action
 	for rows.Next() {
-		var i GetAllActionsRow
+		var i Action
 		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}

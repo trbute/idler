@@ -12,32 +12,41 @@ import (
 )
 
 const createInventory = `-- name: CreateInventory :one
-INSERT INTO inventories(id, character_id, position_x, position_y, created_at, updated_at)
+INSERT INTO inventories(id, character_id, position_x, position_y, capacity, created_at, updated_at)
 VALUES (
 	gen_random_uuid(),
 	$1,
 	$2,
 	$3,
+	$4,
 	NOW(),
 	NOW()
 )
-RETURNING id, character_id, position_x, position_y, created_at, updated_at
+RETURNING id, character_id, position_x, position_y, weight, capacity, created_at, updated_at
 `
 
 type CreateInventoryParams struct {
 	CharacterID pgtype.UUID
 	PositionX   int32
 	PositionY   int32
+	Capacity    int32
 }
 
 func (q *Queries) CreateInventory(ctx context.Context, arg CreateInventoryParams) (Inventory, error) {
-	row := q.db.QueryRow(ctx, createInventory, arg.CharacterID, arg.PositionX, arg.PositionY)
+	row := q.db.QueryRow(ctx, createInventory,
+		arg.CharacterID,
+		arg.PositionX,
+		arg.PositionY,
+		arg.Capacity,
+	)
 	var i Inventory
 	err := row.Scan(
 		&i.ID,
 		&i.CharacterID,
 		&i.PositionX,
 		&i.PositionY,
+		&i.Weight,
+		&i.Capacity,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -45,7 +54,7 @@ func (q *Queries) CreateInventory(ctx context.Context, arg CreateInventoryParams
 }
 
 const getInventory = `-- name: GetInventory :one
-SELECT id, character_id, position_x, position_y, created_at, updated_at FROM inventories
+SELECT id, character_id, position_x, position_y, weight, capacity, created_at, updated_at FROM inventories
 WHERE id = $1
 `
 
@@ -57,6 +66,8 @@ func (q *Queries) GetInventory(ctx context.Context, id pgtype.UUID) (Inventory, 
 		&i.CharacterID,
 		&i.PositionX,
 		&i.PositionY,
+		&i.Weight,
+		&i.Capacity,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -64,7 +75,7 @@ func (q *Queries) GetInventory(ctx context.Context, id pgtype.UUID) (Inventory, 
 }
 
 const getInventoryByCharacterId = `-- name: GetInventoryByCharacterId :one
-SELECT id, character_id, position_x, position_y, created_at, updated_at FROM inventories
+SELECT id, character_id, position_x, position_y, weight, capacity, created_at, updated_at FROM inventories
 WHERE character_id = $1
 `
 
@@ -76,6 +87,8 @@ func (q *Queries) GetInventoryByCharacterId(ctx context.Context, characterID pgt
 		&i.CharacterID,
 		&i.PositionX,
 		&i.PositionY,
+		&i.Weight,
+		&i.Capacity,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

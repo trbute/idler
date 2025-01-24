@@ -26,12 +26,12 @@ VALUES
 	('SOAPSTONE DEPOSIT', 6, 1)
 ;
 
-INSERT INTO items (name)
+INSERT INTO items (name, weight)
 VALUES 
-	('STICKS'),
-	('ROCKS'),
-	('BALSA LOGS'),
-	('SOAPSTONE')
+	('STICKS', 1),
+	('ROCKS', 1),
+	('BALSA LOGS', 2),
+	('SOAPSTONE', 1)
 ;
 
 INSERT INTO resources (resource_node_id, item_id, drop_chance)

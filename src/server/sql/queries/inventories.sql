@@ -1,10 +1,11 @@
 -- name: CreateInventory :one
-INSERT INTO inventories(id, character_id, position_x, position_y, created_at, updated_at)
+INSERT INTO inventories(id, character_id, position_x, position_y, capacity, created_at, updated_at)
 VALUES (
 	gen_random_uuid(),
 	$1,
 	$2,
 	$3,
+	$4,
 	NOW(),
 	NOW()
 )

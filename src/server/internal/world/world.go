@@ -23,11 +23,14 @@ type Item struct {
 	ID       int32
 	Name     string
 	Quantity int32
+	Weight   int32
 }
 
 type Inventory struct {
 	InventoryID pgtype.UUID
 	Items       map[string]*Item
+	Weight      int32
+	Capacity    int32
 }
 
 type Character struct {
@@ -129,6 +132,7 @@ func (cfg *WorldConfig) GetWorld() *World {
 			itemItem := Item{}
 			itemItem.ID = itemRecord.ID
 			itemItem.Name = itemRecord.Name
+			itemItem.Weight = itemRecord.Weight
 			resourceItem.Item = itemItem
 
 			resourceNodeItem.Resources = append(resourceNodeItem.Resources, resourceItem)

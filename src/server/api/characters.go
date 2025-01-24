@@ -66,6 +66,7 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 			CharacterID: character.ID,
 			PositionX:   character.PositionX,
 			PositionY:   character.PositionY,
+			Capacity:    64,
 		},
 	)
 	if err != nil {

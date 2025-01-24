@@ -40,10 +40,12 @@ func (cfg *WorldConfig) processWoodCutting(cell Cell, charName string, nodeName 
 	if !ok {
 		charItems[drop.Name] = &Item{
 			Name:     drop.Name,
+			Weight:   drop.Weight,
 			Quantity: 1,
 		}
 	} else {
 		charItems[drop.Name].Quantity++
+		charItems[drop.Name].Weight += drop.Weight
 	}
 
 	_, err := cfg.DB.AddItemsToInventory(context.Background(), database.AddItemsToInventoryParams{

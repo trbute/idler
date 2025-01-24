@@ -9,10 +9,8 @@ import (
 )
 
 type Action struct {
-	ID        int32
-	Name      string
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
+	ID   int32
+	Name string
 }
 
 type Character struct {
@@ -37,6 +35,8 @@ type Inventory struct {
 	CharacterID pgtype.UUID
 	PositionX   int32
 	PositionY   int32
+	Weight      int32
+	Capacity    int32
 	CreatedAt   pgtype.Timestamp
 	UpdatedAt   pgtype.Timestamp
 }
@@ -51,10 +51,9 @@ type InventoryItem struct {
 }
 
 type Item struct {
-	ID        int32
-	Name      string
-	CreatedAt pgtype.Timestamp
-	UpdatedAt pgtype.Timestamp
+	ID     int32
+	Name   string
+	Weight int32
 }
 
 type RefreshToken struct {

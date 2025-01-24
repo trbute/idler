@@ -23,10 +23,8 @@ CREATE TABLE refresh_tokens(
 );
 
 CREATE TABLE actions(
-	id INTEGER PRIMARY KEY,
-	name TEXT NOT NULL,
-	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL
+	id SERIAL PRIMARY KEY,
+	name TEXT NOT NULL
 );
 
 CREATE TABLE characters(
@@ -43,10 +41,9 @@ CREATE TABLE characters(
 );
 
 CREATE TABLE items(
-	id INTEGER PRIMARY KEY,
+	id SERIAL PRIMARY KEY,
 	name TEXT NOT NULL,
-	created_at TIMESTAMP NOT NULL,
-	updated_at TIMESTAMP NOT NULL
+	weight INTEGER NOT NULL
 );
 
 CREATE TABLE inventories(
@@ -54,6 +51,8 @@ CREATE TABLE inventories(
 	character_id UUID,
 	position_x INTEGER NOT NULL,
 	position_y INTEGER NOT NULL,
+	weight INTEGER NOT NULL DEFAULT 0,
+	capacity INTEGER NOT NULL,
 	created_at TIMESTAMP NOT NULL,
 	updated_at TIMESTAMP NOT NULL,
 	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE,
@@ -73,7 +72,7 @@ CREATE TABLE inventory_items(
 );
 
 CREATE TABLE resource_nodes(
-	id INTEGER PRIMARY KEY,
+	id SERIAL PRIMARY KEY,
 	name TEXT,
 	action_id INTEGER NOT NULL,
 	tier INTEGER NOT NULL,
@@ -81,7 +80,7 @@ CREATE TABLE resource_nodes(
 );
 
 CREATE TABLE resources(
-	id INTEGER PRIMARY KEY,
+	id SERIAL PRIMARY KEY,
 	resource_node_id INTEGER NOT NULL,
 	item_id INTEGER NOT NULL,
 	drop_chance INTEGER NOT NULL,
@@ -91,7 +90,7 @@ CREATE TABLE resources(
 );
 
 CREATE TABLE resource_node_spawns(
-	id INTEGER PRIMARY KEY,
+	id SERIAL PRIMARY KEY,
 	node_id INTEGER NOT NULL,
 	position_x INTEGER NOT NULL,
 	position_y INTEGER NOT NULL,
