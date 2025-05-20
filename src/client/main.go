@@ -18,12 +18,10 @@ import (
 	"github.com/charmbracelet/wish/logging"
 )
 
-const (
-	host = "localhost"
-	port = "23234"
-)
-
 func main() {
+	host := os.Getenv("CLIENT_HOST")
+	port := os.Getenv("CLIENT_PORT")
+
 	s, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(host, port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
@@ -67,6 +65,7 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	}
 
 	state := sharedState{}
+	state.apiUrl = os.Getenv("API_URL")
 	state.style = &style
 	state.currentPage = Login
 

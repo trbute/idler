@@ -138,7 +138,7 @@ func (m *signupModel) createUser() tea.Cmd {
 
 		req, err := http.NewRequest(
 			"POST",
-			"http://127.0.0.1:8080/api/users",
+			m.apiUrl+"/users",
 			bytes.NewBuffer(jsonData),
 		)
 		if err != nil {
@@ -159,8 +159,8 @@ func (m *signupModel) createUser() tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		bodyStr := string(body)
-		resColor := Red
+		var bodyStr string
+		var resColor Color
 		if res.StatusCode == 201 {
 			resColor = Green
 			bodyStr = "User Creation Successful"

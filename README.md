@@ -15,17 +15,3 @@
 ### delete containers & volumes
 
     docker compose down -v
-
-## Running locally
-
-### Migrations
-
-Use Postgres + [Goose](https://github.com/pressly/goose)
-
-From `sql/schema` directory:
-
-    goose postgres {{databaseConnectionURL}} up
-
-### Query builder
-
-Use [SQLC](https://docs.sqlc.dev/en/stable/tutorials/getting-started-postgresql.html)

@@ -9,7 +9,6 @@ import (
 
 type ApiConfig struct {
 	DB        *database.Queries
-	Platform  string
 	JwtSecret string
 	World     *world.World
 }

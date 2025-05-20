@@ -34,14 +34,14 @@ func InitLoginModel(state *sharedState) *loginModel {
 	m := loginModel{}
 
 	email := textinput.New()
-	email.Prompt = ""
 	email.Placeholder = "email"
+	email.Width = 15
 	email.Focus()
 	m.fields = append(m.fields, email)
 
 	password := textinput.New()
-	password.Prompt = ""
 	password.Placeholder = "password"
+	password.Width = 15
 	password.EchoMode = textinput.EchoPassword
 	password.EchoCharacter = '•'
 	m.fields = append(m.fields, password)
@@ -137,7 +137,7 @@ func (m *loginModel) loginUser() tea.Cmd {
 
 		req, err := http.NewRequest(
 			"POST",
-			"http://127.0.0.1:8080/api/login",
+			m.apiUrl+"/login",
 			bytes.NewBuffer(jsonData),
 		)
 		if err != nil {

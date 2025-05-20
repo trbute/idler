@@ -88,9 +88,9 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 		case "up", "down", "k", "j":
 			if m.cursor == 1 {
 				if msg.String() == "up" || msg.String() == "k" {
-					m.viewport.LineUp(1)
+					m.viewport.ScrollUp(1)
 				} else {
-					m.viewport.LineDown(1)
+					m.viewport.ScrollDown(1)
 				}
 			}
 		case "enter":
@@ -169,7 +169,7 @@ func (m *uiModel) createCharacter(charName string) tea.Cmd {
 
 		req, err := http.NewRequest(
 			"POST",
-			"http://127.0.0.1:8080/api/characters",
+			m.apiUrl+"/characters",
 			bytes.NewBuffer(jsonData),
 		)
 		if err != nil {
@@ -191,8 +191,8 @@ func (m *uiModel) createCharacter(charName string) tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		bodyStr := string(body)
-		resColor := Red
+		var bodyStr string
+		var resColor Color
 		if res.StatusCode == 201 {
 			resColor = Green
 			bodyStr = "Character Creation Successful"
@@ -225,7 +225,7 @@ func (m *uiModel) setAction(actionName string, target string) tea.Cmd {
 
 		req, err := http.NewRequest(
 			"PUT",
-			"http://127.0.0.1:8080/api/characters",
+			m.apiUrl+"/characters",
 			bytes.NewBuffer(jsonData),
 		)
 		if err != nil {
@@ -283,7 +283,7 @@ func (m *uiModel) getArea() tea.Cmd {
 
 		req, err := http.NewRequest(
 			"GET",
-			fmt.Sprintf("http://127.0.0.1:8080/api/sense/area/%v", m.selectedChar),
+			m.apiUrl+fmt.Sprintf("/sense/area/%v", m.selectedChar),
 			nil,
 		)
 		if err != nil {
@@ -315,7 +315,7 @@ func (m *uiModel) getArea() tea.Cmd {
 			} else {
 				bodyStr = "\n"
 				if len(res.Characters) > 0 {
-					bodyStr += fmt.Sprint("Characters\n")
+					bodyStr += "Characters\n"
 					for _, value := range res.Characters {
 						bodyStr += fmt.Sprintf(
 							"\t%v is %v at %v\n",
@@ -327,7 +327,7 @@ func (m *uiModel) getArea() tea.Cmd {
 				}
 
 				if len(res.ResourceNodes) > 0 {
-					bodyStr += fmt.Sprint("Resources\n")
+					bodyStr += "Resources\n"
 					for _, value := range res.ResourceNodes {
 						resource := caser.String(value)
 						bodyStr += fmt.Sprintf("\t%v\n", resource)
@@ -357,7 +357,7 @@ func (m *uiModel) getInventory() tea.Cmd {
 
 		req, err := http.NewRequest(
 			"GET",
-			fmt.Sprintf("http://127.0.0.1:8080/api/inventory/%v", m.selectedChar),
+			m.apiUrl+fmt.Sprintf("/inventory/%v", m.selectedChar),
 			nil,
 		)
 		if err != nil {
@@ -389,7 +389,7 @@ func (m *uiModel) getInventory() tea.Cmd {
 			} else {
 				bodyStr = "\n"
 				if len(res.Items) > 0 {
-					bodyStr += fmt.Sprint("Inventory\n")
+					bodyStr += "Inventory\n"
 					for name, quantity := range res.Items {
 						bodyStr += fmt.Sprintf(
 							"\t%v: %v\n",

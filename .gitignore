@@ -1,3 +1,4 @@
 .env
 src/client/.ssh
 src/debug.log
+*.DS_Store

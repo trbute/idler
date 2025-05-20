@@ -2,7 +2,6 @@ package world
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -13,7 +12,6 @@ import (
 
 type WorldConfig struct {
 	DB       *database.Queries
-	Platform string
 	TickRate time.Duration
 	Seed     *rand.Rand
 	World    *World
@@ -69,9 +67,6 @@ type World struct {
 }
 
 func (cfg *WorldConfig) GetWorld() *World {
-	start := time.Now()
-	fmt.Println("started worldbuilding")
-
 	world := new(World)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -90,9 +85,10 @@ func (cfg *WorldConfig) GetWorld() *World {
 
 		world.Grid = make(map[Coord]Cell)
 		world.Grid[key] = Cell{
-			PositionX:  gridItem.PositionX,
-			PositionY:  gridItem.PositionY,
-			Characters: make(map[string]*Character),
+			PositionX:     gridItem.PositionX,
+			PositionY:     gridItem.PositionY,
+			Characters:    make(map[string]*Character),
+			ResourceNodes: make(map[string]ResourceNode),
 		}
 	}
 
@@ -107,7 +103,7 @@ func (cfg *WorldConfig) GetWorld() *World {
 		if err != nil {
 			log.Fatalf("Failed to get resource nodes: %v", err)
 		}
-		resourceNodeItem.Name = resourceNodeRecord.Name.String
+		resourceNodeItem.Name = resourceNodeRecord.Name
 		resourceNodeItem.ActionID = resourceNodeRecord.ActionID
 
 		key := Coord{
@@ -140,13 +136,9 @@ func (cfg *WorldConfig) GetWorld() *World {
 		}
 
 		gridCell := world.Grid[key]
-		gridCell.ResourceNodes = make(map[string]ResourceNode)
 		gridCell.ResourceNodes[resourceNodeItem.Name] = resourceNodeItem
 		world.Grid[key] = gridCell
 	}
-
-	duration := time.Since(start)
-	fmt.Printf("Finished worldbuilding in %s\n", duration)
 
 	return world
 }

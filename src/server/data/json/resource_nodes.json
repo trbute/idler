@@ -1,0 +1,46 @@
+[
+  {
+    "name": "STICKS",
+    "action_name": "GATHERING",
+    "tier": 1,
+    "drops": [
+      {
+        "name": "STICKS",
+        "chance": 100
+      }
+    ]
+  },
+  {
+    "name": "ROCKS",
+    "action_name": "GATHERING",
+    "tier": 1,
+    "drops": [
+      {
+        "name": "ROCKS",
+        "chance": 100
+      }
+    ]
+  },
+  {
+    "name": "BALSA TREE",
+    "action_name": "WOODCUTTING",
+    "tier": 1,
+    "drops": [
+      {
+        "name": "BALSA LOGS",
+        "chance": 100
+      }
+    ]
+  },
+  {
+    "name": "SOAPSTONE DEPOSIT",
+    "action_name": "STONEBREAKING",
+    "tier": 1,
+    "drops": [
+      {
+        "name": "SOAPSTONE",
+        "chance": 100
+      }
+    ]
+  }
+]

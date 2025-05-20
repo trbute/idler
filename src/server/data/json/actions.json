@@ -1,0 +1,26 @@
+[
+  {
+    "name": "IDLE"
+  },
+  {
+    "name": "MELEE"
+  },
+  {
+    "name": "ARCHERY"
+  },
+  {
+    "name": "WEAVING"
+  },
+  {
+    "name": "GATHERING"
+  },
+  {
+    "name": "WOODCUTTING"
+  },
+  {
+    "name": "STONEBREAKING"
+  },
+  {
+    "name": "MINING"
+  }
+]

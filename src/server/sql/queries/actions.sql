@@ -8,3 +8,6 @@ WHERE id = $1;
 
 -- name: GetAllActions :many
 SELECT id, name FROM actions;
+
+-- name: CreateAction :exec
+INSERT INTO actions (name) VALUES ($1);

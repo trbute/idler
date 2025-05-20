@@ -17,7 +17,7 @@ services:
 
   server:
     build:
-      context: .
+      context: src/server/
       dockerfile: Dockerfile
     depends_on:
       db:
@@ -30,14 +30,29 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_PORT: ${DB_PORT}
-      PLATFORM: docker
       JWT_SECRET: ${JWT_SECRET}
+      TICK_MS: ${TICK_MS}
     ports:
       - "8080:8080"
-    command: ./server
+
+  client:
+    build:
+      context: src/client/
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      CLIENT_HOST: ${CLIENT_HOST}
+      CLIENT_PORT: ${CLIENT_PORT}
+      API_URL:  ${API_URL}
+    ports:
+      - "23234:23234"
 
   migrate:
-    image: golang:1.23.3
+    image: golang:1.24.1
     depends_on:
       db:
         condition: service_healthy

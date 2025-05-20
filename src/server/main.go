@@ -10,19 +10,14 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/trbute/idler/server/api"
+	"github.com/trbute/idler/server/data"
 	"github.com/trbute/idler/server/internal/database"
 	"github.com/trbute/idler/server/internal/world"
 )
 
 func main() {
-	if os.Getenv("PLATFORM") != "docker" {
-		if err := godotenv.Load("../.env"); err != nil {
-			log.Fatal(err)
-		}
-	}
 
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASSWORD")
@@ -44,19 +39,26 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Use the connection pool with sqlc
 	DbConn := database.New(pool)
 
-	platform := os.Getenv("PLATFORM")
 	jwtSecret := os.Getenv("JWT_SECRET")
 
+	dataCfg := data.DataConfig{
+		DB: DbConn,
+	}
+
+	dataCfg.InitData()
+
 	tickInt, err := strconv.Atoi(os.Getenv("TICK_MS"))
+	if err != nil {
+		log.Fatalf("Unable to convert TICK_MS to int: %v", err)
+	}
+
 	tickRate := time.Duration(time.Duration(tickInt) * time.Millisecond)
 	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	worldCfg := world.WorldConfig{
 		DB:       DbConn,
-		Platform: platform,
 		TickRate: tickRate,
 		Seed:     seed,
 	}
@@ -66,7 +68,6 @@ func main() {
 
 	apiCfg := api.ApiConfig{
 		DB:        DbConn,
-		Platform:  platform,
 		JwtSecret: jwtSecret,
 		World:     world,
 	}
