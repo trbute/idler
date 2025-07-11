@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/server/api"
 	"github.com/trbute/idler/server/data"
 	"github.com/trbute/idler/server/internal/database"
@@ -57,19 +58,33 @@ func main() {
 	tickRate := time.Duration(time.Duration(tickInt) * time.Millisecond)
 	seed := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_ADDRESS"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = rdb.Ping(ctx).Result()
+	if err != nil {
+		log.Fatalf("Unable to connect to Redis: %v", err)
+	}
+	fmt.Println("Connected to Redis")
+	defer rdb.Close()
+
 	worldCfg := world.WorldConfig{
 		DB:       DbConn,
+		Redis:    rdb,
 		TickRate: tickRate,
 		Seed:     seed,
 	}
 
-	world := worldCfg.GetWorld()
-	worldCfg.World = world
-
 	apiCfg := api.ApiConfig{
 		DB:        DbConn,
 		JwtSecret: jwtSecret,
-		World:     world,
+		Redis:     rdb,
+		Pool:      pool, // Pass the pool for transaction support
 	}
 
 	go worldCfg.ProcessTicks()

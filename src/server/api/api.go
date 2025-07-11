@@ -3,14 +3,16 @@ package api
 import (
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/server/internal/database"
-	"github.com/trbute/idler/server/internal/world"
 )
 
 type ApiConfig struct {
 	DB        *database.Queries
 	JwtSecret string
-	World     *world.World
+	Redis     *redis.Client
+	Pool      *pgxpool.Pool
 }
 
 func (cfg *ApiConfig) ServeApi() {

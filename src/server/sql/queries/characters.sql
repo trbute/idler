@@ -9,6 +9,10 @@ VALUES (
 )
 RETURNING *;
 
+-- name: GetCharactersByCoordinates :many
+SELECT * from characters
+WHERE position_x = $1 AND position_y = $2;
+
 -- name: GetCharacterById :one
 SELECT * from characters
 WHERE id = $1;

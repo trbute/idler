@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
-	"github.com/trbute/idler/server/internal/world"
+	"github.com/trbute/idler/server/internal/database"
 )
 
 type charData struct {
@@ -49,39 +49,39 @@ func (cfg *ApiConfig) handleGetArea(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := world.Coord{
+	characters, err := cfg.DB.GetCharactersByCoordinates(r.Context(), database.GetCharactersByCoordinatesParams{
 		PositionX: char.PositionX,
 		PositionY: char.PositionY,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve characters in area", err)
+		return
 	}
 
-	cell := cfg.World.Grid[key]
-	area := area{}
-	area.Characters = []charData{}
-
-	for key, value := range cell.Characters {
-		if key != charName {
-			action, err := cfg.DB.GetActionById(r.Context(), value.ActionId)
-			if err != nil {
-				respondWithError(
-					w,
-					http.StatusInternalServerError,
-					"Unable to retrieve action",
-					err,
-				)
-				return
-			}
-
-			char := charData{
-				CharacterName: key,
-				ActionName:    action.Name,
-				ActionTarget:  value.ActionTarget,
-			}
-			area.Characters = append(area.Characters, char)
+	resourceNodes, err := cfg.DB.GetResourceNodeSpawnsByCoordinates(r.Context(), database.GetResourceNodeSpawnsByCoordinatesParams{
+		PositionX: char.PositionX,
+		PositionY: char.PositionY,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve resource nodes in area", err)
+		return
+	}
+	chars := []charData{}
+	for _, c := range characters {
+		action, err := cfg.DB.GetActionById(r.Context(), c.ActionID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Unable to retrieve action name", err)
+			return
 		}
+		chars = append(chars, charData{
+			CharacterName: c.Name,
+			ActionName:    action.Name,
+			ActionTarget:  string(c.ActionTarget),
+		})
 	}
-
-	for key := range cell.ResourceNodes {
-		area.ResourceNodes = append(area.ResourceNodes, key)
+	area := area{
+		Characters:    characters,
+		ResourceNodes: make([]string, 0, len(resourceNodes)),
 	}
 
 	respondWithJSON(w, http.StatusOK, area)

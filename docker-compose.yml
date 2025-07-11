@@ -30,6 +30,9 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_PORT: ${DB_PORT}
+      REDIS_ADDRESS: ${REDIS_ADDRESS}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       TICK_MS: ${TICK_MS}
     ports:
@@ -49,7 +52,7 @@ services:
       CLIENT_PORT: ${CLIENT_PORT}
       API_URL:  ${API_URL}
     ports:
-      - "23234:23234"
+      - "${CLIENT_PORT}:${CLIENT_PORT}"
 
   migrate:
     image: golang:1.24.1
@@ -70,5 +73,20 @@ services:
         'go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir /migrations postgres "postgres://$DB_USER:$DB_PASSWORD@db:$DB_PORT/$DB_NAME?sslmode=disable" up',
       ]
 
+  redis:
+    image: redis:latest
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+
+
 volumes:
   postgres_data:
+  redis_data:

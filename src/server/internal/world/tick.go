@@ -7,8 +7,16 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/server/internal/database"
 )
+
+type WorldConfig struct {
+	DB       *database.Queries
+	Redis    *redis.Client
+	TickRate time.Duration
+	Seed     *rand.Rand
+}
 
 func (cfg *WorldConfig) ProcessTicks() {
 	fmt.Println("starting tick")
