@@ -25,7 +25,9 @@ type sharedState struct {
 	*style
 	currentPage Page
 	userToken   string
+	surname     string
 	apiUrl      string
+	wsUrl       string
 }
 
 type baseModel struct {

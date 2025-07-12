@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/gorilla/websocket"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -22,6 +24,8 @@ type uiModel struct {
 	vpContent    strings.Builder
 	selectedChar string
 	cursor       int
+	wsConn       *websocket.Conn
+	wsConnected  bool
 }
 
 type characterData struct {
@@ -39,6 +43,22 @@ type inventoryResponse struct {
 	Items map[string]int32 `json:"items"`
 }
 
+type wsMessage struct {
+	Type string                 `json:"type"`
+	Data map[string]interface{} `json:"data"`
+}
+
+type chatMsgReceived struct {
+	message string
+	color   Color
+}
+
+type wsConnected struct{}
+
+type wsError struct {
+	err error
+}
+
 func InitUIModel(state *sharedState) *uiModel {
 	m := uiModel{}
 	m.sharedState = state
@@ -53,6 +73,9 @@ func InitUIModel(state *sharedState) *uiModel {
 	m.vpContent.WriteString("Welcome!\n")
 	m.viewport.SetContent(m.vpContent.String())
 
+	// Initialize WebSocket connection
+	m.connectWebSocket()
+
 	return &m
 }
 
@@ -62,6 +85,13 @@ func (m *uiModel) Init() tea.Cmd {
 
 func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
+	
+	// Try to connect to WebSocket if we have a token and haven't connected yet
+	if !m.wsConnected && m.userToken != "" {
+		m.wsConnected = true
+		return m.connectWebSocketCmd()
+	}
+	
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -76,7 +106,24 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 		m.vpContent.WriteString(output + "\n")
 		m.viewport.SetContent(m.vpContent.String())
 		m.viewport.GotoBottom()
-		m.input.SetValue("")
+	case chatMsgReceived:
+		output := m.colorStyle(msg.message, msg.color)
+		m.vpContent.WriteString(output + "\n")
+		m.viewport.SetContent(m.vpContent.String())
+		m.viewport.GotoBottom()
+		// Continue listening for more messages
+		return m.listenForMessagesCmd()
+	case wsConnected:
+		output := m.colorStyle("Connected to chat", Green)
+		m.vpContent.WriteString(output + "\n")
+		m.viewport.SetContent(m.vpContent.String())
+		m.viewport.GotoBottom()
+		return m.listenForMessagesCmd()
+	case wsError:
+		output := m.colorStyle("Chat connection error: "+msg.err.Error(), Red)
+		m.vpContent.WriteString(output + "\n")
+		m.viewport.SetContent(m.vpContent.String())
+		m.viewport.GotoBottom()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "tab":
@@ -97,6 +144,8 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 		case "enter":
 			if m.cursor == 0 {
 				command := strings.Split(m.input.Value(), " ")
+				// Clear input immediately to prevent spam
+				m.input.SetValue("")
 				var output string
 				var outputColor Color
 				switch command[0] {
@@ -118,6 +167,14 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 					} else {
 						return m.createCharacter(command[1])
 					}
+				case "say":
+					if len(command) < 2 {
+						output = "Usage: say <message>"
+						outputColor = Red
+					} else {
+						message := strings.Join(command[1:], " ")
+						return m.sendChatMessage(message)
+					}
 				case "echo":
 					output = strings.Join(command[1:], " ")
 					outputColor = Green
@@ -131,7 +188,6 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 				m.vpContent.WriteString(output + "\n")
 				m.viewport.SetContent(m.vpContent.String())
 				m.viewport.GotoBottom()
-				m.input.SetValue("")
 			}
 		}
 	}
@@ -415,5 +471,106 @@ func (m *uiModel) getInventory() tea.Cmd {
 		}
 
 		return apiResMsg{resColor, bodyStr}
+	}
+}
+
+func (m *uiModel) connectWebSocket() {
+	// This is now replaced by connectWebSocketCmd()
+}
+
+func (m *uiModel) connectWebSocketCmd() tea.Cmd {
+	return func() tea.Msg {
+		if m.userToken == "" {
+			return wsError{err: fmt.Errorf("no user token available")}
+		}
+		
+		wsURL := m.wsUrl + "?token=" + url.QueryEscape(m.userToken)
+		
+		conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			return wsError{err: err}
+		}
+		
+		m.wsConn = conn
+		return wsConnected{}
+	}
+}
+
+func (m *uiModel) listenForMessagesCmd() tea.Cmd {
+	return func() tea.Msg {
+		if m.wsConn == nil {
+			return wsError{err: fmt.Errorf("no websocket connection")}
+		}
+		
+		var msg wsMessage
+		err := m.wsConn.ReadJSON(&msg)
+		if err != nil {
+			return wsError{err: err}
+		}
+		
+		// Handle different message types
+		switch msg.Type {
+		case "chat":
+			if data, ok := msg.Data["message"].(string); ok {
+				characterName := ""
+				surname := ""
+				
+				if char, exists := msg.Data["character_name"].(string); exists {
+					characterName = char
+				}
+				if sur, exists := msg.Data["surname"].(string); exists {
+					surname = sur
+				}
+				
+				var displayName string
+				if characterName != "" && surname != "" {
+					displayName = fmt.Sprintf("%s %s", characterName, surname)
+				} else if surname != "" {
+					displayName = surname
+				} else {
+					displayName = "Unknown User"
+				}
+				
+				chatMsg := fmt.Sprintf("[%s]: %s", displayName, data)
+				return chatMsgReceived{message: chatMsg, color: Blue}
+			}
+		case "notification":
+			if data, ok := msg.Data["message"].(string); ok {
+				notificationMsg := fmt.Sprintf("⚠ %s", data)
+				return chatMsgReceived{message: notificationMsg, color: Magenta}
+			}
+		}
+		
+		// If we didn't handle the message, continue listening
+		return m.listenForMessagesCmd()
+	}
+}
+
+func (m *uiModel) sendChatMessage(message string) tea.Cmd {
+	return func() tea.Msg {
+		if m.selectedChar == "" {
+			return apiResMsg{Red, "No character selected. Use 'sel <character>' first"}
+		}
+		
+		if m.wsConn == nil {
+			return apiResMsg{Red, "Not connected to chat. Connection will retry automatically."}
+		}
+		
+		chatMsg := wsMessage{
+			Type: "chat",
+			Data: map[string]interface{}{
+				"message":        message,
+				"character_name": m.selectedChar,
+				"surname":        m.surname,
+			},
+		}
+		
+		err := m.wsConn.WriteJSON(chatMsg)
+		if err != nil {
+			return apiResMsg{Red, "Failed to send message: " + err.Error()}
+		}
+		
+		// Message sent successfully, no need to return anything
+		return nil
 	}
 }

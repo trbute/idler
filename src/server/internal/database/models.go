@@ -101,6 +101,7 @@ type User struct {
 	HashedPassword string
 	CreatedAt      pgtype.Timestamp
 	UpdatedAt      pgtype.Timestamp
+	Surname        pgtype.Text
 }
 
 type Version struct {

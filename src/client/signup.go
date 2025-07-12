@@ -26,10 +26,15 @@ func InitSignupModel(state *sharedState) *signupModel {
 
 	m.sharedState = state
 
+	surname := textinput.New()
+	surname.Placeholder = "surname"
+	surname.Width = 30
+	surname.Focus()
+	m.fields = append(m.fields, surname)
+
 	email := textinput.New()
 	email.Placeholder = "email"
 	email.Width = 30
-	email.Focus()
 	m.fields = append(m.fields, email)
 
 	password := textinput.New()
@@ -67,7 +72,7 @@ func (m *signupModel) Update(msg tea.Msg) tea.Cmd {
 			if m.cursor == len(m.fields)+1 && msg.String() == "enter" {
 				m.currentPage = Login
 			} else if m.cursor == len(m.fields) && msg.String() == "enter" {
-				if m.fields[1].Value() != m.fields[2].Value() {
+				if m.fields[2].Value() != m.fields[3].Value() {
 					m.subText = "Passwords do not match"
 					m.subTextColor = Red
 				} else {
@@ -127,8 +132,9 @@ func (m *signupModel) View() string {
 func (m *signupModel) createUser() tea.Cmd {
 	return func() tea.Msg {
 		data := map[string]string{
-			"email":    m.fields[0].Value(),
-			"password": m.fields[1].Value(),
+			"surname":  m.fields[0].Value(),
+			"email":    m.fields[1].Value(),
+			"password": m.fields[2].Value(),
 		}
 
 		jsonData, err := json.Marshal(data)

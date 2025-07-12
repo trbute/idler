@@ -1,19 +1,32 @@
 services:
   db:
-    image: postgres:latest
+    image: postgres:15-alpine  # Smaller, faster startup than latest
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+      POSTGRES_INITDB_ARGS: "--auth-host=trust"  # Skip password auth for faster init in dev
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 2s  # Check more frequently
+      timeout: 2s   # Faster timeout
+      retries: 10   # More retries but faster intervals
+      start_period: 5s  # Give initial startup time
     ports:
       - "${DB_PORT}:${DB_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Performance optimizations for development
+    command: >
+      postgres 
+      -c shared_preload_libraries=''
+      -c max_connections=50
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c maintenance_work_mem=32MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
 
   server:
     build:
@@ -43,19 +56,19 @@ services:
       context: src/client/
       dockerfile: Dockerfile
     depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
+      - server  # Client only needs server, not DB or migrations
     environment:
       CLIENT_HOST: ${CLIENT_HOST}
       CLIENT_PORT: ${CLIENT_PORT}
       API_URL:  ${API_URL}
+      WS_URL: ws://server:8080/ws
     ports:
       - "${CLIENT_PORT}:${CLIENT_PORT}"
 
   migrate:
-    image: golang:1.24.1
+    build:
+      context: .
+      dockerfile: migrate.dockerfile
     depends_on:
       db:
         condition: service_healthy
@@ -66,21 +79,20 @@ services:
       DB_NAME: ${DB_NAME}
     volumes:
       - ./src/server/sql/schema:/migrations
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        'go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir /migrations postgres "postgres://$DB_USER:$DB_PASSWORD@db:$DB_PORT/$DB_NAME?sslmode=disable" up',
-      ]
+    command: >
+      goose -dir /migrations postgres 
+      "postgres://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}?sslmode=disable" 
+      up
 
   redis:
-    image: redis:latest
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    image: redis:7-alpine  # Smaller, faster startup than latest
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 2s  # Check more frequently
+      timeout: 2s   # Faster timeout
+      retries: 10   # More retries but faster intervals
+      start_period: 3s  # Give initial startup time
     ports:
       - "${REDIS_PORT}:6379"
     volumes:

@@ -16,6 +16,7 @@ type loginResult struct {
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
 	Email        string `json:"email"`
+	Surname      string `json:"surname,omitempty"`
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
 }
@@ -165,6 +166,7 @@ func (m *loginModel) loginUser() tea.Cmd {
 		}
 
 		m.userToken = loginRes.Token
+		m.surname = loginRes.Surname
 
 		var resStr string
 		resColor := Red

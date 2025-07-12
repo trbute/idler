@@ -15,6 +15,7 @@ import (
 	"github.com/trbute/idler/server/api"
 	"github.com/trbute/idler/server/data"
 	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/websocket"
 	"github.com/trbute/idler/server/internal/world"
 )
 
@@ -73,11 +74,15 @@ func main() {
 	fmt.Println("Connected to Redis")
 	defer rdb.Close()
 
+	hub := websocket.NewHub()
+	go hub.Run()
+
 	apiCfg := api.ApiConfig{
 		DB:        DbConn,
 		JwtSecret: jwtSecret,
 		Redis:     rdb,
 		Pool:      pool,
+		Hub:       hub,
 	}
 
 	worldCfg := world.WorldConfig{

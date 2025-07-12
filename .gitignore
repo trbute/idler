@@ -2,3 +2,5 @@
 src/client/.ssh
 src/debug.log
 *.DS_Store
+src/server/server
+src/client/client

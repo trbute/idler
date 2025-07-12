@@ -114,6 +114,19 @@ func (cfg *ApiConfig) BatchAddItemsToInventory(ctx context.Context, updates []In
 		return nil
 	}
 
+	// Check capacity for each inventory before adding items
+	for _, update := range updates {
+		canAdd, err := cfg.CheckInventoryCapacity(ctx, update.InventoryID, update.ItemID, update.Quantity)
+		if err != nil {
+			return err
+		}
+		if !canAdd {
+			// Send notification about full inventory
+			cfg.SendInventoryFullNotification(ctx, update.InventoryID)
+			return fmt.Errorf("inventory is full, cannot add %d of item %d", update.Quantity, update.ItemID)
+		}
+	}
+
 	inventoryIDs := make([]pgtype.UUID, len(updates))
 	itemIDs := make([]int32, len(updates))
 	quantities := make([]int32, len(updates))
@@ -124,11 +137,13 @@ func (cfg *ApiConfig) BatchAddItemsToInventory(ctx context.Context, updates []In
 		quantities[i] = update.Quantity
 	}
 
-	return cfg.DB.BatchAddItemsToInventory(ctx, database.BatchAddItemsToInventoryParams{
+	err := cfg.DB.BatchAddItemsToInventory(ctx, database.BatchAddItemsToInventoryParams{
 		Column1: inventoryIDs,
 		Column2: itemIDs,
 		Column3: quantities,
 	})
+
+	return err
 }
 
 func (cfg *ApiConfig) GetBestToolForType(ctx context.Context, characterID pgtype.UUID, toolTypeID int32, minTier int32) (*database.Item, int32, error) {
@@ -171,4 +186,44 @@ func (cfg *ApiConfig) GetBestToolForType(ctx context.Context, characterID pgtype
 	}
 
 	return bestTool, bestTier, nil
+}
+
+func (cfg *ApiConfig) CheckInventoryCapacity(ctx context.Context, inventoryID pgtype.UUID, itemID int32, quantity int32) (bool, error) {
+	inventory, err := cfg.DB.GetInventory(ctx, inventoryID)
+	if err != nil {
+		return false, err
+	}
+
+	// Get item weight to calculate total weight to add
+	item, err := cfg.GetItemById(ctx, itemID)
+	if err != nil {
+		return false, err
+	}
+
+	totalWeightToAdd := item.Weight * quantity
+	newWeight := inventory.Weight + totalWeightToAdd
+
+	return newWeight <= inventory.Capacity, nil
+}
+
+func (cfg *ApiConfig) SendInventoryFullNotification(ctx context.Context, inventoryID pgtype.UUID) {
+	// Get inventory to find character
+	inventory, err := cfg.DB.GetInventory(ctx, inventoryID)
+	if err != nil {
+		return
+	}
+
+	if !inventory.CharacterID.Valid {
+		return
+	}
+
+	// Get character to find user
+	character, err := cfg.GetCharacterById(ctx, inventory.CharacterID)
+	if err != nil {
+		return
+	}
+
+	// Send WebSocket notification about full inventory
+	message := fmt.Sprintf("Inventory is full for character %s!", character.Name)
+	cfg.Hub.SendNotificationToUser(character.UserID.Bytes, message, "warning")
 }

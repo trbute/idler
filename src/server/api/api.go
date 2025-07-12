@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/websocket"
 )
 
 type ApiConfig struct {
@@ -13,6 +14,7 @@ type ApiConfig struct {
 	JwtSecret string
 	Redis     *redis.Client
 	Pool      *pgxpool.Pool
+	Hub       *websocket.Hub
 }
 
 func (cfg *ApiConfig) ServeApi() {
@@ -33,6 +35,7 @@ func (cfg *ApiConfig) ServeApi() {
 	mux.HandleFunc("POST /api/login", cfg.handleLogin)
 	mux.HandleFunc("POST /api/refresh", cfg.handleRefresh)
 	mux.HandleFunc("POST /api/revoke", cfg.handleRevoke)
+	mux.HandleFunc("GET /ws", cfg.handleWebSocket)
 
 	server.ListenAndServe()
 }
