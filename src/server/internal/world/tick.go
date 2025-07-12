@@ -66,22 +66,14 @@ func (cfg *WorldConfig) ProcessTicks() {
 }
 
 func (cfg *WorldConfig) processCharacterAction(char database.Character) *api.InventoryUpdate {
-	switch char.ActionID {
-	case 1:
-		return nil
-	case 6:
-		return cfg.processWoodCutting(char)
-	default:
-		log.Printf("Unknown action ID %d for character %s", char.ActionID, char.Name)
-		return nil
-	}
+	return cfg.processResourceGathering(char)
 }
 
-func (cfg *WorldConfig) processWoodCutting(char database.Character) *api.InventoryUpdate {
+func (cfg *WorldConfig) processResourceGathering(char database.Character) *api.InventoryUpdate {
 	ctx := context.Background()
 
 	if !char.ActionTarget.Valid {
-		log.Printf("Character %s has no action target for woodcutting", char.Name)
+		log.Printf("Character %s has no action target for resource gathering", char.Name)
 		return nil
 	}
 

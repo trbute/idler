@@ -130,3 +130,45 @@ func (cfg *ApiConfig) BatchAddItemsToInventory(ctx context.Context, updates []In
 		Column3: quantities,
 	})
 }
+
+func (cfg *ApiConfig) GetBestToolForType(ctx context.Context, characterID pgtype.UUID, toolTypeID int32, minTier int32) (*database.Item, int32, error) {
+	inventory, err := cfg.GetInventoryByCharacterId(ctx, characterID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	inventoryItems, err := cfg.DB.GetInventoryItemsByInventoryId(ctx, inventory.ID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var bestTool *database.Item
+	var bestTier int32 = 0
+
+	for _, invItem := range inventoryItems {
+		if invItem.Quantity > 0 {
+			item, err := cfg.GetItemById(ctx, invItem.ItemID)
+			if err != nil {
+				continue
+			}
+
+			if item.ToolTypeID.Valid && item.ToolTypeID.Int32 == toolTypeID {
+				toolType, err := cfg.DB.GetToolTypeById(ctx, item.ToolTypeID.Int32)
+				if err != nil {
+					continue
+				}
+
+				if toolType.Tier >= minTier && toolType.Tier > bestTier {
+					bestTool = &item
+					bestTier = toolType.Tier
+				}
+			}
+		}
+	}
+
+	if bestTool == nil {
+		return nil, 0, nil
+	}
+
+	return bestTool, bestTier, nil
+}

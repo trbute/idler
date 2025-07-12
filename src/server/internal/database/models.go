@@ -9,8 +9,9 @@ import (
 )
 
 type Action struct {
-	ID   int32
-	Name string
+	ID                 int32
+	Name               string
+	RequiredToolTypeID pgtype.Int4
 }
 
 type Character struct {
@@ -51,9 +52,10 @@ type InventoryItem struct {
 }
 
 type Item struct {
-	ID     int32
-	Name   string
-	Weight int32
+	ID         int32
+	Name       string
+	Weight     int32
+	ToolTypeID pgtype.Int4
 }
 
 type RefreshToken struct {
@@ -73,10 +75,11 @@ type Resource struct {
 }
 
 type ResourceNode struct {
-	ID       int32
-	Name     string
-	ActionID int32
-	Tier     int32
+	ID          int32
+	Name        string
+	ActionID    int32
+	Tier        int32
+	MinToolTier int32
 }
 
 type ResourceNodeSpawn struct {
@@ -84,6 +87,12 @@ type ResourceNodeSpawn struct {
 	NodeID    int32
 	PositionX int32
 	PositionY int32
+}
+
+type ToolType struct {
+	ID   int32
+	Name string
+	Tier int32
 }
 
 type User struct {

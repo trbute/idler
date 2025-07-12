@@ -100,11 +100,9 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 				var output string
 				var outputColor Color
 				switch command[0] {
-				case "wc":
-					return m.setAction(
-						"WOODCUTTING",
-						strings.ToUpper(strings.Join(command[1:], " ")),
-					)
+				case "act":
+					target := strings.ToUpper(strings.Join(command[1:], " "))
+					return m.setAction(target)
 				case "sense":
 					return m.getArea()
 				case "inv":
@@ -211,11 +209,10 @@ func (m *uiModel) createCharacter(charName string) tea.Cmd {
 	}
 }
 
-func (m *uiModel) setAction(actionName string, target string) tea.Cmd {
+func (m *uiModel) setAction(target string) tea.Cmd {
 	return func() tea.Msg {
 		data := map[string]string{
 			"character_name": m.selectedChar,
-			"action_name":    actionName,
 			"target":         target,
 		}
 
@@ -254,6 +251,11 @@ func (m *uiModel) setAction(actionName string, target string) tea.Cmd {
 		if res.StatusCode == 201 {
 			caser := cases.Title(language.English)
 			resColor = Green
+			
+			var response map[string]interface{}
+			json.Unmarshal(body, &response)
+			actionName := response["action_name"].(string)
+			
 			bodyStr = fmt.Sprintf(
 				"%v started %v on %v",
 				caser.String(m.selectedChar),
@@ -318,12 +320,19 @@ func (m *uiModel) getArea() tea.Cmd {
 				if len(res.Characters) > 0 {
 					bodyStr += "Characters\n"
 					for _, value := range res.Characters {
-						bodyStr += fmt.Sprintf(
-							"\t%v is %v at %v\n",
-							value.CharacterName,
-							caser.String(value.ActionName),
-							caser.String(value.ActionTarget),
-						)
+						if value.ActionName == "IDLE" || value.ActionTarget == "" {
+							bodyStr += fmt.Sprintf(
+								"\t%v is idle\n",
+								value.CharacterName,
+							)
+						} else {
+							bodyStr += fmt.Sprintf(
+								"\t%v is %v at %v\n",
+								value.CharacterName,
+								caser.String(value.ActionName),
+								caser.String(value.ActionTarget),
+							)
+						}
 					}
 				}
 

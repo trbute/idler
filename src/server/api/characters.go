@@ -97,7 +97,6 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 
 	type parameters struct {
 		CharacterName string `json:"character_name"`
-		ActionName    string `json:"action_name"`
 		Target        string `json:"target"`
 	}
 	params := parameters{}
@@ -122,10 +121,42 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Look up action by name instead of ID
-	action, err := cfg.GetActionByName(r.Context(), params.ActionName)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to find action", err)
+	// Find target resource node and get its action
+	var action database.Action
+	var actionTarget pgtype.Int4
+	var foundNode *database.ResourceNode
+	
+	if params.Target != "" {
+		resourceNodes, err := cfg.GetResourceNodeSpawnsByCoordinates(r.Context(), character.PositionX, character.PositionY)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Unable to get resource nodes", err)
+			return
+		}
+
+		var foundSpawn *database.ResourceNodeSpawn
+		for _, spawn := range resourceNodes {
+			node, err := cfg.GetResourceNodeById(r.Context(), spawn.NodeID)
+			if err == nil && strings.EqualFold(node.Name, params.Target) {
+				foundNode = &node
+				foundSpawn = &spawn
+				break
+			}
+		}
+
+		if foundNode == nil {
+			respondWithError(w, http.StatusBadRequest, "Target not found at character location", nil)
+			return
+		}
+
+		action, err = cfg.GetActionById(r.Context(), foundNode.ActionID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Unable to get action for target", err)
+			return
+		}
+
+		actionTarget = pgtype.Int4{Int32: foundSpawn.ID, Valid: true}
+	} else {
+		respondWithError(w, http.StatusBadRequest, "Target must be provided", nil)
 		return
 	}
 
@@ -139,25 +170,27 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Find target resource node spawn at character's location
-	var actionTarget pgtype.Int4
-	if params.Target != "" {
-		resourceNodes, err := cfg.GetResourceNodeSpawnsByCoordinates(r.Context(), character.PositionX, character.PositionY)
-		if err == nil {
-			for _, spawn := range resourceNodes {
-				node, err := cfg.GetResourceNodeById(r.Context(), spawn.NodeID)
-				if err == nil && strings.EqualFold(node.Name, params.Target) {
-					actionTarget = pgtype.Int4{Int32: spawn.ID, Valid: true}
-					break
-				}
-			}
-		}
-		
-		if !actionTarget.Valid {
-			respondWithError(w, http.StatusBadRequest, "Target not found at character location", nil)
+	// Check if action requires a tool and if character has one with sufficient tier
+	if action.RequiredToolTypeID.Valid {
+		bestTool, bestTier, err := cfg.GetBestToolForType(r.Context(), character.ID, action.RequiredToolTypeID.Int32, foundNode.MinToolTier)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Unable to check required tool", err)
 			return
 		}
+		if bestTool == nil {
+			toolType, err := cfg.DB.GetToolTypeById(r.Context(), action.RequiredToolTypeID.Int32)
+			if err != nil {
+				respondWithError(w, http.StatusBadRequest, "You need a required tool to perform this action", nil)
+			} else {
+				respondWithError(w, http.StatusBadRequest, fmt.Sprintf("You need a tier %d+ %s to perform this action", foundNode.MinToolTier, toolType.Name), nil)
+			}
+			return
+		}
+		
+		// Store the tool tier for potential use in resource calculation
+		_ = bestTier // We'll use this later for multipliers
 	}
+
 
 	char, err := cfg.DB.UpdateCharacterByIdWithTarget(r.Context(), database.UpdateCharacterByIdWithTargetParams{
 		ActionID:     action.ID,
@@ -170,9 +203,11 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 	}
 
 
-	respondWithJSON(w, http.StatusCreated, Character{
-		Name:     char.Name,
-		ActionID: char.ActionID,
+	respondWithJSON(w, http.StatusCreated, map[string]interface{}{
+		"name":        char.Name,
+		"action_id":   char.ActionID,
+		"action_name": action.Name,
+		"target":      params.Target,
 	})
 }
 

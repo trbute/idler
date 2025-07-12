@@ -25,7 +25,7 @@ func (q *Queries) CreateResourceNode(ctx context.Context, arg CreateResourceNode
 }
 
 const getResourceNodeById = `-- name: GetResourceNodeById :one
-SELECT id, name, action_id, tier FROM resource_nodes WHERE id = $1
+SELECT id, name, action_id, tier, min_tool_tier FROM resource_nodes WHERE id = $1
 `
 
 func (q *Queries) GetResourceNodeById(ctx context.Context, id int32) (ResourceNode, error) {
@@ -36,12 +36,13 @@ func (q *Queries) GetResourceNodeById(ctx context.Context, id int32) (ResourceNo
 		&i.Name,
 		&i.ActionID,
 		&i.Tier,
+		&i.MinToolTier,
 	)
 	return i, err
 }
 
 const getResourceNodeByName = `-- name: GetResourceNodeByName :one
-SELECT id, name, action_id, tier FROM resource_nodes WHERE name = $1
+SELECT id, name, action_id, tier, min_tool_tier FROM resource_nodes WHERE name = $1
 `
 
 func (q *Queries) GetResourceNodeByName(ctx context.Context, name string) (ResourceNode, error) {
@@ -52,6 +53,7 @@ func (q *Queries) GetResourceNodeByName(ctx context.Context, name string) (Resou
 		&i.Name,
 		&i.ActionID,
 		&i.Tier,
+		&i.MinToolTier,
 	)
 	return i, err
 }

@@ -24,37 +24,52 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) error {
 }
 
 const getItemById = `-- name: GetItemById :one
-SELECT id, name, weight FROM items
+SELECT id, name, weight, tool_type_id FROM items
 WHERE id = $1
 `
 
 func (q *Queries) GetItemById(ctx context.Context, id int32) (Item, error) {
 	row := q.db.QueryRow(ctx, getItemById, id)
 	var i Item
-	err := row.Scan(&i.ID, &i.Name, &i.Weight)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Weight,
+		&i.ToolTypeID,
+	)
 	return i, err
 }
 
 const getItemByName = `-- name: GetItemByName :one
-SELECT id, name, weight FROM items
+SELECT id, name, weight, tool_type_id FROM items
 WHERE name = $1
 `
 
 func (q *Queries) GetItemByName(ctx context.Context, name string) (Item, error) {
 	row := q.db.QueryRow(ctx, getItemByName, name)
 	var i Item
-	err := row.Scan(&i.ID, &i.Name, &i.Weight)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Weight,
+		&i.ToolTypeID,
+	)
 	return i, err
 }
 
 const getItemByResourceId = `-- name: GetItemByResourceId :one
-SELECT id, name, weight FROM items
+SELECT id, name, weight, tool_type_id FROM items
 WHERE id = (SELECT item_id FROM resources WHERE resources.id = $1)
 `
 
 func (q *Queries) GetItemByResourceId(ctx context.Context, id int32) (Item, error) {
 	row := q.db.QueryRow(ctx, getItemByResourceId, id)
 	var i Item
-	err := row.Scan(&i.ID, &i.Name, &i.Weight)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Weight,
+		&i.ToolTypeID,
+	)
 	return i, err
 }
