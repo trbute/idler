@@ -47,7 +47,7 @@ func (q *Queries) CreateCharacter(ctx context.Context, arg CreateCharacterParams
 
 const getActiveCharacters = `-- name: GetActiveCharacters :many
 SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at FROM characters
-WHERE action_id != 0
+WHERE action_id != 1
 `
 
 func (q *Queries) GetActiveCharacters(ctx context.Context) ([]Character, error) {

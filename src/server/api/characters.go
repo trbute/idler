@@ -152,6 +152,11 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 				}
 			}
 		}
+		
+		if !actionTarget.Valid {
+			respondWithError(w, http.StatusBadRequest, "Target not found at character location", nil)
+			return
+		}
 	}
 
 	char, err := cfg.DB.UpdateCharacterByIdWithTarget(r.Context(), database.UpdateCharacterByIdWithTargetParams{
@@ -164,6 +169,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+
 	respondWithJSON(w, http.StatusCreated, Character{
 		Name:     char.Name,
 		ActionID: char.ActionID,
@@ -171,26 +177,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 }
 
 func (cfg *ApiConfig) GetActiveCharacters(ctx context.Context) ([]database.Character, error) {
-	cacheKey := "active_characters"
-
-	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
-	if err == nil {
-		var characters []database.Character
-		if json.Unmarshal([]byte(cached), &characters) == nil {
-			return characters, nil
-		}
-	}
-
-	characters, err := cfg.DB.GetActiveCharacters(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if data, err := json.Marshal(characters); err == nil {
-		cfg.Redis.Set(ctx, cacheKey, data, 60*time.Second)
-	}
-
-	return characters, nil
+	return cfg.DB.GetActiveCharacters(ctx)
 }
 
 func (cfg *ApiConfig) GetCharacterByName(ctx context.Context, name string) (database.Character, error) {

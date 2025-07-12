@@ -38,4 +38,4 @@ RETURNING *;
 
 -- name: GetActiveCharacters :many
 SELECT * FROM characters
-WHERE action_id != 0;
+WHERE action_id != 1;

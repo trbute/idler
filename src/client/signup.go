@@ -27,14 +27,12 @@ func InitSignupModel(state *sharedState) *signupModel {
 	m.sharedState = state
 
 	email := textinput.New()
-	email.Prompt = ""
 	email.Placeholder = "email"
 	email.Width = 30
 	email.Focus()
 	m.fields = append(m.fields, email)
 
 	password := textinput.New()
-	password.Prompt = ""
 	password.Placeholder = "password"
 	password.Width = 30
 	password.EchoMode = textinput.EchoPassword
@@ -42,7 +40,6 @@ func InitSignupModel(state *sharedState) *signupModel {
 	m.fields = append(m.fields, password)
 
 	passwordConfirm := textinput.New()
-	passwordConfirm.Prompt = ""
 	passwordConfirm.Placeholder = "confirm"
 	passwordConfirm.Width = 30
 	passwordConfirm.EchoMode = textinput.EchoPassword
