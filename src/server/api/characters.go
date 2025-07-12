@@ -1,10 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"strings"
+	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
 	"github.com/trbute/idler/server/internal/database"
@@ -20,18 +24,6 @@ type Character struct {
 }
 
 func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Request) {
-	type Parameters struct {
-		Name string `json:"name"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	params := Parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to decode parameters", err)
-		return
-	}
-
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Unable to retrieve token", err)
@@ -44,28 +36,23 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Start transaction using Pool
-	txp, err := cfg.Pool.BeginTx(r.Context(), pgx.TxOptions{})
+	type parameters struct {
+		Name string `json:"name"`
+	}
+	params := parameters{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Failed to start transaction", err)
+		respondWithError(w, http.StatusBadRequest, "Unable to decode parameters", err)
 		return
 	}
-	defer func() {
-		if err != nil {
-			txp.Rollback(r.Context())
-		} else {
-			txp.Commit(r.Context())
-		}
-	}()
-
-	tx := cfg.DB.WithTx(txp)
 
 	pgUserID := pgtype.UUID{
 		Bytes: userID,
 		Valid: true,
 	}
 
-	character, err := tx.CreateCharacter(r.Context(), database.CreateCharacterParams{
+	character, err := cfg.DB.CreateCharacter(r.Context(), database.CreateCharacterParams{
 		UserID: pgUserID,
 		Name:   params.Name,
 	})
@@ -74,22 +61,14 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	_, err = tx.CreateInventory(
-		r.Context(),
-		database.CreateInventoryParams{
-			CharacterID: character.ID,
-			PositionX:   character.PositionX,
-			PositionY:   character.PositionY,
-			Capacity:    64,
-		},
-	)
+	_, err = cfg.DB.CreateInventory(r.Context(), database.CreateInventoryParams{
+		CharacterID: character.ID,
+		PositionX:   character.PositionX,
+		PositionY:   character.PositionY,
+		Capacity:    50,
+	})
 	if err != nil {
-		respondWithError(
-			w,
-			http.StatusInternalServerError,
-			"Character inventory creation failed",
-			err,
-		)
+		respondWithError(w, http.StatusInternalServerError, "Inventory creation failed", err)
 		return
 	}
 
@@ -104,20 +83,6 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 }
 
 func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Request) {
-	type Parameters struct {
-		CharacterName string `json:"character_name"`
-		ActionName    string `json:"action_name"`
-		Target        string `json:"target"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	params := Parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to decode parameters", err)
-		return
-	}
-
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Unable to retrieve token", err)
@@ -130,51 +95,37 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	txp, err := cfg.Pool.BeginTx(r.Context(), pgx.TxOptions{})
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Failed to start transaction", err)
-		return
+	type parameters struct {
+		CharacterName string `json:"character_name"`
+		ActionName    string `json:"action_name"`
+		Target        string `json:"target"`
 	}
-	defer func() {
-		if err != nil {
-			txp.Rollback(r.Context())
-		} else {
-			txp.Commit(r.Context())
-		}
-	}()
-
-	tx := cfg.DB.WithTx(txp)
-
-	character, err := tx.GetCharacterByName(r.Context(), params.CharacterName)
+	params := parameters{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
+		log.Printf("JSON decode error: %v", err)
+		respondWithError(w, http.StatusBadRequest, "Unable to decode parameters", err)
 		return
 	}
 
-	node, err := tx.GetResourceNodeByName(r.Context(), params.Target)
+	
+	if params.CharacterName == "" {
+		respondWithError(w, http.StatusBadRequest, "Character name is required", nil)
+		return
+	}
+	
+	character, err := cfg.GetCharacterByName(r.Context(), params.CharacterName)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve resource node", err)
+		log.Printf("Character lookup failed for '%s': %v", params.CharacterName, err)
+		respondWithError(w, http.StatusInternalServerError, "Unable to find character", err)
 		return
 	}
 
-	_, err = tx.GetResourceNodeSpawnByCoordsAndNodeId(r.Context(), database.GetResourceNodeSpawnByCoordsAndNodeIdParams{
-		PositionX: character.PositionX,
-		PositionY: character.PositionY,
-		NodeID:    node.ID,
-	})
+	// Look up action by name instead of ID
+	action, err := cfg.GetActionByName(r.Context(), params.ActionName)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve resource node spawn", err)
-		return
-	}
-
-	action, err := tx.GetActionByName(r.Context(), params.ActionName)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve action", err)
-		return
-	}
-
-	if node.ActionID != action.ID {
-		respondWithError(w, http.StatusBadRequest, "Can't do that to this node type", err)
+		respondWithError(w, http.StatusInternalServerError, "Unable to find action", err)
 		return
 	}
 
@@ -188,9 +139,25 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	char, err := tx.UpdateCharacterById(r.Context(), database.UpdateCharacterByIdParams{
-		ActionID: action.ID,
-		ID:       character.ID,
+	// Find target resource node spawn at character's location
+	var actionTarget pgtype.Int4
+	if params.Target != "" {
+		resourceNodes, err := cfg.GetResourceNodeSpawnsByCoordinates(r.Context(), character.PositionX, character.PositionY)
+		if err == nil {
+			for _, spawn := range resourceNodes {
+				node, err := cfg.GetResourceNodeById(r.Context(), spawn.NodeID)
+				if err == nil && strings.EqualFold(node.Name, params.Target) {
+					actionTarget = pgtype.Int4{Int32: spawn.ID, Valid: true}
+					break
+				}
+			}
+		}
+	}
+
+	char, err := cfg.DB.UpdateCharacterByIdWithTarget(r.Context(), database.UpdateCharacterByIdWithTargetParams{
+		ActionID:     action.ID,
+		ActionTarget: actionTarget,
+		ID:           character.ID,
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Character update failed", err)
@@ -201,4 +168,73 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		Name:     char.Name,
 		ActionID: char.ActionID,
 	})
+}
+
+func (cfg *ApiConfig) GetActiveCharacters(ctx context.Context) ([]database.Character, error) {
+	cacheKey := "active_characters"
+
+	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var characters []database.Character
+		if json.Unmarshal([]byte(cached), &characters) == nil {
+			return characters, nil
+		}
+	}
+
+	characters, err := cfg.DB.GetActiveCharacters(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if data, err := json.Marshal(characters); err == nil {
+		cfg.Redis.Set(ctx, cacheKey, data, 60*time.Second)
+	}
+
+	return characters, nil
+}
+
+func (cfg *ApiConfig) GetCharacterByName(ctx context.Context, name string) (database.Character, error) {
+	cacheKey := fmt.Sprintf("character:name:%s", name)
+
+	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var character database.Character
+		if json.Unmarshal([]byte(cached), &character) == nil {
+			return character, nil
+		}
+	}
+
+	character, err := cfg.DB.GetCharacterByName(ctx, name)
+	if err != nil {
+		return database.Character{}, err
+	}
+
+	if data, err := json.Marshal(character); err == nil {
+		cfg.Redis.Set(ctx, cacheKey, data, 30*time.Second)
+	}
+
+	return character, nil
+}
+
+func (cfg *ApiConfig) GetCharacterById(ctx context.Context, id pgtype.UUID) (database.Character, error) {
+	cacheKey := fmt.Sprintf("character:id:%s", id.String())
+
+	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var character database.Character
+		if json.Unmarshal([]byte(cached), &character) == nil {
+			return character, nil
+		}
+	}
+
+	character, err := cfg.DB.GetCharacterById(ctx, id)
+	if err != nil {
+		return database.Character{}, err
+	}
+
+	if data, err := json.Marshal(character); err == nil {
+		cfg.Redis.Set(ctx, cacheKey, data, 30*time.Second)
+	}
+
+	return character, nil
 }

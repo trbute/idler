@@ -45,6 +45,41 @@ func (q *Queries) CreateCharacter(ctx context.Context, arg CreateCharacterParams
 	return i, err
 }
 
+const getActiveCharacters = `-- name: GetActiveCharacters :many
+SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at FROM characters
+WHERE action_id != 0
+`
+
+func (q *Queries) GetActiveCharacters(ctx context.Context) ([]Character, error) {
+	rows, err := q.db.Query(ctx, getActiveCharacters)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Character
+	for rows.Next() {
+		var i Character
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.PositionX,
+			&i.PositionY,
+			&i.ActionID,
+			&i.ActionTarget,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCharacterById = `-- name: GetCharacterById :one
 SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at from characters
 WHERE id = $1
@@ -144,6 +179,38 @@ type UpdateCharacterByIdParams struct {
 
 func (q *Queries) UpdateCharacterById(ctx context.Context, arg UpdateCharacterByIdParams) (Character, error) {
 	row := q.db.QueryRow(ctx, updateCharacterById, arg.ActionID, arg.ID)
+	var i Character
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.PositionX,
+		&i.PositionY,
+		&i.ActionID,
+		&i.ActionTarget,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateCharacterByIdWithTarget = `-- name: UpdateCharacterByIdWithTarget :one
+UPDATE characters
+SET action_id = $1,
+	action_target = $2,
+	updated_at = NOW()
+WHERE id = $3
+RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at
+`
+
+type UpdateCharacterByIdWithTargetParams struct {
+	ActionID     int32
+	ActionTarget pgtype.Int4
+	ID           pgtype.UUID
+}
+
+func (q *Queries) UpdateCharacterByIdWithTarget(ctx context.Context, arg UpdateCharacterByIdWithTargetParams) (Character, error) {
+	row := q.db.QueryRow(ctx, updateCharacterByIdWithTarget, arg.ActionID, arg.ActionTarget, arg.ID)
 	var i Character
 	err := row.Scan(
 		&i.ID,

@@ -44,6 +44,7 @@ func InitUIModel(state *sharedState) *uiModel {
 	m.sharedState = state
 	cmd := textinput.New()
 	cmd.Placeholder = "command"
+	cmd.Width = 50
 	cmd.Focus()
 	m.input = cmd
 

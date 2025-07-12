@@ -27,3 +27,15 @@ SET action_id = $1,
 	updated_at = NOW()
 WHERE id = $2
 RETURNING *;
+
+-- name: UpdateCharacterByIdWithTarget :one
+UPDATE characters
+SET action_id = $1,
+	action_target = $2,
+	updated_at = NOW()
+WHERE id = $3
+RETURNING *;
+
+-- name: GetActiveCharacters :many
+SELECT * FROM characters
+WHERE action_id != 0;

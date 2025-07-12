@@ -73,18 +73,19 @@ func main() {
 	fmt.Println("Connected to Redis")
 	defer rdb.Close()
 
-	worldCfg := world.WorldConfig{
-		DB:       DbConn,
-		Redis:    rdb,
-		TickRate: tickRate,
-		Seed:     seed,
-	}
-
 	apiCfg := api.ApiConfig{
 		DB:        DbConn,
 		JwtSecret: jwtSecret,
 		Redis:     rdb,
-		Pool:      pool, // Pass the pool for transaction support
+		Pool:      pool,
+	}
+
+	worldCfg := world.WorldConfig{
+		DB:        DbConn,
+		Redis:     rdb,
+		TickRate:  tickRate,
+		Seed:      seed,
+		ApiConfig: &apiCfg,
 	}
 
 	go worldCfg.ProcessTicks()

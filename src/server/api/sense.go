@@ -15,6 +15,8 @@ type charData struct {
 }
 
 type area struct {
+	PositionX     int32      `json:"position_x"`
+	PositionY     int32      `json:"position_y"`
 	Characters    []charData `json:"characters"`
 	ResourceNodes []string   `json:"resource_nodes"`
 }
@@ -33,7 +35,7 @@ func (cfg *ApiConfig) handleGetArea(w http.ResponseWriter, r *http.Request) {
 	}
 
 	charName := r.PathValue("character")
-	char, err := cfg.DB.GetCharacterByName(r.Context(), charName)
+	char, err := cfg.GetCharacterByName(r.Context(), charName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
 		return
@@ -58,30 +60,54 @@ func (cfg *ApiConfig) handleGetArea(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resourceNodes, err := cfg.DB.GetResourceNodeSpawnsByCoordinates(r.Context(), database.GetResourceNodeSpawnsByCoordinatesParams{
-		PositionX: char.PositionX,
-		PositionY: char.PositionY,
-	})
+	resourceNodes, err := cfg.GetResourceNodeSpawnsByCoordinates(r.Context(), char.PositionX, char.PositionY)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve resource nodes in area", err)
 		return
 	}
+
 	chars := []charData{}
 	for _, c := range characters {
-		action, err := cfg.DB.GetActionById(r.Context(), c.ActionID)
+		action, err := cfg.GetActionById(r.Context(), c.ActionID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Unable to retrieve action name", err)
 			return
 		}
+		actionTarget := ""
+		if c.ActionTarget.Valid {
+			spawn, err := cfg.DB.GetResourceNodeSpawnById(r.Context(), c.ActionTarget.Int32)
+			if err == nil {
+				targetNode, err := cfg.GetResourceNodeById(r.Context(), spawn.NodeID)
+				if err == nil {
+					actionTarget = targetNode.Name
+				}
+			}
+			if actionTarget == "" {
+				actionTarget = "Unknown Target"
+			}
+		}
+
 		chars = append(chars, charData{
 			CharacterName: c.Name,
 			ActionName:    action.Name,
-			ActionTarget:  string(c.ActionTarget),
+			ActionTarget:  actionTarget,
 		})
 	}
+
+	nodeNames := make([]string, 0, len(resourceNodes))
+	for _, node := range resourceNodes {
+		resourceNode, err := cfg.GetResourceNodeById(r.Context(), node.NodeID)
+		if err != nil {
+			continue
+		}
+		nodeNames = append(nodeNames, resourceNode.Name)
+	}
+
 	area := area{
-		Characters:    characters,
-		ResourceNodes: make([]string, 0, len(resourceNodes)),
+		PositionX:     char.PositionX,
+		PositionY:     char.PositionY,
+		Characters:    chars,
+		ResourceNodes: nodeNames,
 	}
 
 	respondWithJSON(w, http.StatusOK, area)

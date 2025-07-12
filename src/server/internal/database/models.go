@@ -20,7 +20,7 @@ type Character struct {
 	PositionX    int32
 	PositionY    int32
 	ActionID     int32
-	ActionTarget pgtype.UUID
+	ActionTarget pgtype.Int4
 	CreatedAt    pgtype.Timestamp
 	UpdatedAt    pgtype.Timestamp
 }

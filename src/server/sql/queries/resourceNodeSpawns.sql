@@ -1,6 +1,9 @@
 -- name: GetResourceNodeSpawns :many
 SELECT * FROM resource_node_spawns;
 
+-- name: GetResourceNodeSpawnById :one
+SELECT * FROM resource_node_spawns WHERE id = $1;
+
 -- name: GetResourceNodeSpawnsByCoordinates :many
 SELECT * FROM resource_node_spawns WHERE position_x = $1 AND position_y = $2;
 

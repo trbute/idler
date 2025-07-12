@@ -3,11 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/trbute/idler/server/internal/auth"
+	"github.com/trbute/idler/server/internal/database"
 )
 
 type Action struct {
@@ -56,11 +58,57 @@ func (cfg *ApiConfig) handleGetActions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if jsonData, err := json.Marshal(actionResponse); err == nil {
-		err = cfg.Redis.Set(ctx, actionsCacheKey, jsonData, time.Hour).Err()
+		err = cfg.Redis.Set(ctx, actionsCacheKey, jsonData, 24*time.Hour).Err()
 		if err != nil {
 			log.Printf("Failed to cache actions: %v", err)
 		}
 	}
 
 	respondWithJSON(w, http.StatusOK, actionResponse)
+}
+
+func (cfg *ApiConfig) GetActionById(ctx context.Context, actionID int32) (database.Action, error) {
+	cacheKey := fmt.Sprintf("action:%d", actionID)
+	
+	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var action database.Action
+		if json.Unmarshal([]byte(cached), &action) == nil {
+			return action, nil
+		}
+	}
+	
+	action, err := cfg.DB.GetActionById(ctx, actionID)
+	if err != nil {
+		return database.Action{}, err
+	}
+	
+	if data, err := json.Marshal(action); err == nil {
+		cfg.Redis.Set(ctx, cacheKey, data, 24*time.Hour)
+	}
+	
+	return action, nil
+}
+
+func (cfg *ApiConfig) GetActionByName(ctx context.Context, name string) (database.Action, error) {
+	cacheKey := fmt.Sprintf("action:name:%s", name)
+	
+	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var action database.Action
+		if json.Unmarshal([]byte(cached), &action) == nil {
+			return action, nil
+		}
+	}
+	
+	action, err := cfg.DB.GetActionByName(ctx, name)
+	if err != nil {
+		return database.Action{}, err
+	}
+	
+	if data, err := json.Marshal(action); err == nil {
+		cfg.Redis.Set(ctx, cacheKey, data, 24*time.Hour)
+	}
+	
+	return action, nil
 }

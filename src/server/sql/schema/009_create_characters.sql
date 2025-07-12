@@ -6,7 +6,7 @@ CREATE TABLE characters(
 	position_x INTEGER NOT NULL DEFAULT 0,
 	position_y INTEGER NOT NULL DEFAULT 0,
 	action_id INTEGER NOT NULL REFERENCES actions ON DELETE CASCADE DEFAULT 1,
-	action_target UUID,
+	action_target INTEGER REFERENCES resource_node_spawns ON DELETE CASCADE DEFAULT NULL,
 	created_at TIMESTAMP NOT NULL,
 	updated_at TIMESTAMP NOT NULL,
 	FOREIGN KEY (position_x, position_y) REFERENCES grid (position_x, position_y) ON DELETE CASCADE 

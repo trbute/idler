@@ -46,6 +46,22 @@ func (q *Queries) GetResourceNodeSpawnByCoordsAndNodeId(ctx context.Context, arg
 	return i, err
 }
 
+const getResourceNodeSpawnById = `-- name: GetResourceNodeSpawnById :one
+SELECT id, node_id, position_x, position_y FROM resource_node_spawns WHERE id = $1
+`
+
+func (q *Queries) GetResourceNodeSpawnById(ctx context.Context, id int32) (ResourceNodeSpawn, error) {
+	row := q.db.QueryRow(ctx, getResourceNodeSpawnById, id)
+	var i ResourceNodeSpawn
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.PositionX,
+		&i.PositionY,
+	)
+	return i, err
+}
+
 const getResourceNodeSpawns = `-- name: GetResourceNodeSpawns :many
 SELECT id, node_id, position_x, position_y FROM resource_node_spawns
 `

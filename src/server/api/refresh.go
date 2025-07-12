@@ -31,7 +31,7 @@ func (cfg *ApiConfig) handleRefresh(w http.ResponseWriter, r *http.Request) {
 			w,
 			http.StatusUnauthorized,
 			"Refresh token has expired",
-			errors.New("Refresh token has expired"),
+			errors.New("refresh token has expired"),
 		)
 		return
 	}
