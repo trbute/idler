@@ -37,7 +37,6 @@ func (cfg *ApiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate surname
 	if len(params.Surname) < 3 || len(params.Surname) > 20 {
 		respondWithError(w, http.StatusBadRequest, "Surname must be between 3 and 20 characters", nil)
 		return

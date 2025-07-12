@@ -73,9 +73,6 @@ func InitUIModel(state *sharedState) *uiModel {
 	m.vpContent.WriteString("Welcome!\n")
 	m.viewport.SetContent(m.vpContent.String())
 
-	// Initialize WebSocket connection
-	m.connectWebSocket()
-
 	return &m
 }
 
@@ -85,13 +82,12 @@ func (m *uiModel) Init() tea.Cmd {
 
 func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
-	
-	// Try to connect to WebSocket if we have a token and haven't connected yet
+
 	if !m.wsConnected && m.userToken != "" {
 		m.wsConnected = true
 		return m.connectWebSocketCmd()
 	}
-	
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -111,7 +107,6 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 		m.vpContent.WriteString(output + "\n")
 		m.viewport.SetContent(m.vpContent.String())
 		m.viewport.GotoBottom()
-		// Continue listening for more messages
 		return m.listenForMessagesCmd()
 	case wsConnected:
 		output := m.colorStyle("Connected to chat", Green)
@@ -144,7 +139,6 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 		case "enter":
 			if m.cursor == 0 {
 				command := strings.Split(m.input.Value(), " ")
-				// Clear input immediately to prevent spam
 				m.input.SetValue("")
 				var output string
 				var outputColor Color
@@ -157,9 +151,14 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 				case "inv":
 					return m.getInventory()
 				case "sel":
-					m.selectedChar = command[1]
-					output = fmt.Sprintf("Selected %v", m.selectedChar)
-					outputColor = Green
+					if len(command) < 2 {
+						output = "Usage: sel <character>"
+						outputColor = Red
+					} else {
+						m.selectedChar = command[1]
+						output = fmt.Sprintf("Selected %v", m.selectedChar)
+						outputColor = Green
+					}
 				case "newchar":
 					if len(command) > 2 {
 						output = fmt.Sprintf("Too many arguments for \"%v\" command", command[0])
@@ -307,11 +306,11 @@ func (m *uiModel) setAction(target string) tea.Cmd {
 		if res.StatusCode == 201 {
 			caser := cases.Title(language.English)
 			resColor = Green
-			
+
 			var response map[string]interface{}
 			json.Unmarshal(body, &response)
 			actionName := response["action_name"].(string)
-			
+
 			bodyStr = fmt.Sprintf(
 				"%v started %v on %v",
 				caser.String(m.selectedChar),
@@ -474,23 +473,19 @@ func (m *uiModel) getInventory() tea.Cmd {
 	}
 }
 
-func (m *uiModel) connectWebSocket() {
-	// This is now replaced by connectWebSocketCmd()
-}
-
 func (m *uiModel) connectWebSocketCmd() tea.Cmd {
 	return func() tea.Msg {
 		if m.userToken == "" {
 			return wsError{err: fmt.Errorf("no user token available")}
 		}
-		
+
 		wsURL := m.wsUrl + "?token=" + url.QueryEscape(m.userToken)
-		
+
 		conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 		if err != nil {
 			return wsError{err: err}
 		}
-		
+
 		m.wsConn = conn
 		return wsConnected{}
 	}
@@ -501,27 +496,26 @@ func (m *uiModel) listenForMessagesCmd() tea.Cmd {
 		if m.wsConn == nil {
 			return wsError{err: fmt.Errorf("no websocket connection")}
 		}
-		
+
 		var msg wsMessage
 		err := m.wsConn.ReadJSON(&msg)
 		if err != nil {
 			return wsError{err: err}
 		}
-		
-		// Handle different message types
+
 		switch msg.Type {
 		case "chat":
 			if data, ok := msg.Data["message"].(string); ok {
 				characterName := ""
 				surname := ""
-				
+
 				if char, exists := msg.Data["character_name"].(string); exists {
 					characterName = char
 				}
 				if sur, exists := msg.Data["surname"].(string); exists {
 					surname = sur
 				}
-				
+
 				var displayName string
 				if characterName != "" && surname != "" {
 					displayName = fmt.Sprintf("%s %s", characterName, surname)
@@ -530,7 +524,7 @@ func (m *uiModel) listenForMessagesCmd() tea.Cmd {
 				} else {
 					displayName = "Unknown User"
 				}
-				
+
 				chatMsg := fmt.Sprintf("[%s]: %s", displayName, data)
 				return chatMsgReceived{message: chatMsg, color: Blue}
 			}
@@ -539,9 +533,13 @@ func (m *uiModel) listenForMessagesCmd() tea.Cmd {
 				notificationMsg := fmt.Sprintf("⚠ %s", data)
 				return chatMsgReceived{message: notificationMsg, color: Magenta}
 			}
+		case "error":
+			if data, ok := msg.Data["message"].(string); ok {
+				errorMsg := fmt.Sprintf("Error: %s", data)
+				return chatMsgReceived{message: errorMsg, color: Red}
+			}
 		}
-		
-		// If we didn't handle the message, continue listening
+
 		return m.listenForMessagesCmd()
 	}
 }
@@ -551,11 +549,11 @@ func (m *uiModel) sendChatMessage(message string) tea.Cmd {
 		if m.selectedChar == "" {
 			return apiResMsg{Red, "No character selected. Use 'sel <character>' first"}
 		}
-		
+
 		if m.wsConn == nil {
 			return apiResMsg{Red, "Not connected to chat. Connection will retry automatically."}
 		}
-		
+
 		chatMsg := wsMessage{
 			Type: "chat",
 			Data: map[string]interface{}{
@@ -564,13 +562,12 @@ func (m *uiModel) sendChatMessage(message string) tea.Cmd {
 				"surname":        m.surname,
 			},
 		}
-		
+
 		err := m.wsConn.WriteJSON(chatMsg)
 		if err != nil {
 			return apiResMsg{Red, "Failed to send message: " + err.Error()}
 		}
-		
-		// Message sent successfully, no need to return anything
+
 		return nil
 	}
 }

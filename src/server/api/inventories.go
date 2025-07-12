@@ -30,19 +30,14 @@ func (cfg *ApiConfig) handleGetInventory(w http.ResponseWriter, r *http.Request)
 	}
 
 	charName := r.PathValue("character")
-	char, err := cfg.GetCharacterByName(r.Context(), charName)
+	
+	char, err := cfg.GetCharacterWithOwnershipValidation(r.Context(), charName, userId)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
-		return
-	}
-
-	pgUserId := pgtype.UUID{
-		Bytes: userId,
-		Valid: true,
-	}
-
-	if char.UserID != pgUserId {
-		respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", err)
+		if err.Error() == "character doesn't belong to user" {
+			respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", nil)
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
+		}
 		return
 	}
 
@@ -114,14 +109,12 @@ func (cfg *ApiConfig) BatchAddItemsToInventory(ctx context.Context, updates []In
 		return nil
 	}
 
-	// Check capacity for each inventory before adding items
 	for _, update := range updates {
 		canAdd, err := cfg.CheckInventoryCapacity(ctx, update.InventoryID, update.ItemID, update.Quantity)
 		if err != nil {
 			return err
 		}
 		if !canAdd {
-			// Send notification about full inventory
 			cfg.SendInventoryFullNotification(ctx, update.InventoryID)
 			return fmt.Errorf("inventory is full, cannot add %d of item %d", update.Quantity, update.ItemID)
 		}
@@ -194,7 +187,6 @@ func (cfg *ApiConfig) CheckInventoryCapacity(ctx context.Context, inventoryID pg
 		return false, err
 	}
 
-	// Get item weight to calculate total weight to add
 	item, err := cfg.GetItemById(ctx, itemID)
 	if err != nil {
 		return false, err
@@ -207,7 +199,6 @@ func (cfg *ApiConfig) CheckInventoryCapacity(ctx context.Context, inventoryID pg
 }
 
 func (cfg *ApiConfig) SendInventoryFullNotification(ctx context.Context, inventoryID pgtype.UUID) {
-	// Get inventory to find character
 	inventory, err := cfg.DB.GetInventory(ctx, inventoryID)
 	if err != nil {
 		return
@@ -217,13 +208,11 @@ func (cfg *ApiConfig) SendInventoryFullNotification(ctx context.Context, invento
 		return
 	}
 
-	// Get character to find user
 	character, err := cfg.GetCharacterById(ctx, inventory.CharacterID)
 	if err != nil {
 		return
 	}
 
-	// Send WebSocket notification about full inventory
 	message := fmt.Sprintf("Inventory is full for character %s!", character.Name)
 	cfg.Hub.SendNotificationToUser(character.UserID.Bytes, message, "warning")
 }

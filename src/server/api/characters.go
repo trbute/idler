@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
 	"github.com/trbute/idler/server/internal/database"
@@ -103,29 +103,29 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&params)
 	if err != nil {
-		log.Printf("JSON decode error: %v", err)
 		respondWithError(w, http.StatusBadRequest, "Unable to decode parameters", err)
 		return
 	}
 
-	
 	if params.CharacterName == "" {
 		respondWithError(w, http.StatusBadRequest, "Character name is required", nil)
 		return
 	}
-	
-	character, err := cfg.GetCharacterByName(r.Context(), params.CharacterName)
+
+	character, err := cfg.GetCharacterWithOwnershipValidation(r.Context(), params.CharacterName, userID)
 	if err != nil {
-		log.Printf("Character lookup failed for '%s': %v", params.CharacterName, err)
-		respondWithError(w, http.StatusInternalServerError, "Unable to find character", err)
+		if err.Error() == "character doesn't belong to user" {
+			respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", nil)
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "Unable to find character", err)
+		}
 		return
 	}
 
-	// Find target resource node and get its action
 	var action database.Action
 	var actionTarget pgtype.Int4
 	var foundNode *database.ResourceNode
-	
+
 	if params.Target != "" {
 		resourceNodes, err := cfg.GetResourceNodeSpawnsByCoordinates(r.Context(), character.PositionX, character.PositionY)
 		if err != nil {
@@ -160,17 +160,6 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	pgUserID := pgtype.UUID{
-		Bytes: userID,
-		Valid: true,
-	}
-
-	if character.UserID != pgUserID {
-		respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", err)
-		return
-	}
-
-	// Check if action requires a tool and if character has one with sufficient tier
 	if action.RequiredToolTypeID.Valid {
 		bestTool, bestTier, err := cfg.GetBestToolForType(r.Context(), character.ID, action.RequiredToolTypeID.Int32, foundNode.MinToolTier)
 		if err != nil {
@@ -186,11 +175,9 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 			}
 			return
 		}
-		
-		// Store the tool tier for potential use in resource calculation
-		_ = bestTier // We'll use this later for multipliers
-	}
 
+		_ = bestTier
+	}
 
 	char, err := cfg.DB.UpdateCharacterByIdWithTarget(r.Context(), database.UpdateCharacterByIdWithTargetParams{
 		ActionID:     action.ID,
@@ -201,7 +188,6 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		respondWithError(w, http.StatusInternalServerError, "Character update failed", err)
 		return
 	}
-
 
 	respondWithJSON(w, http.StatusCreated, map[string]interface{}{
 		"name":        char.Name,
@@ -256,6 +242,38 @@ func (cfg *ApiConfig) GetCharacterById(ctx context.Context, id pgtype.UUID) (dat
 
 	if data, err := json.Marshal(character); err == nil {
 		cfg.Redis.Set(ctx, cacheKey, data, 30*time.Second)
+	}
+
+	return character, nil
+}
+
+func (cfg *ApiConfig) ValidateCharacterOwnership(ctx context.Context, characterName string, userID uuid.UUID) (bool, error) {
+	character, err := cfg.GetCharacterByName(ctx, characterName)
+	if err != nil {
+		return false, err
+	}
+
+	pgUserID := pgtype.UUID{
+		Bytes: userID,
+		Valid: true,
+	}
+
+	return character.UserID == pgUserID, nil
+}
+
+func (cfg *ApiConfig) GetCharacterWithOwnershipValidation(ctx context.Context, characterName string, userID uuid.UUID) (database.Character, error) {
+	character, err := cfg.GetCharacterByName(ctx, characterName)
+	if err != nil {
+		return database.Character{}, err
+	}
+
+	pgUserID := pgtype.UUID{
+		Bytes: userID,
+		Valid: true,
+	}
+
+	if character.UserID != pgUserID {
+		return database.Character{}, fmt.Errorf("character doesn't belong to user")
 	}
 
 	return character, nil

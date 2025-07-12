@@ -16,26 +16,22 @@ const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 512 * 1024 // 512KB
+	maxMessageSize = 512 * 1024
 )
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		
-		// Allow connections without Origin header (non-browser clients like our Go client)
 		if origin == "" {
 			return true
 		}
 		
-		// Get allowed origins from environment variable
 		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 		if allowedOrigins == "" {
-			// If no origins specified, allow localhost for development
 			allowedOrigins = "http://localhost:23234,http://127.0.0.1:23234"
 		}
 		
-		// Split and check each allowed origin
 		origins := strings.Split(allowedOrigins, ",")
 		for _, allowedOrigin := range origins {
 			if strings.TrimSpace(allowedOrigin) == origin {
@@ -48,19 +44,20 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type SurnameProvider interface {
+type Provider interface {
 	GetSurnameById(ctx context.Context, userID uuid.UUID) (string, error)
+	ValidateCharacterOwnership(ctx context.Context, characterName string, userID uuid.UUID) (bool, error)
 }
 
 type Client struct {
-	hub             *Hub
-	conn            *websocket.Conn
-	send            chan *Message
-	userID          uuid.UUID
-	surnameProvider SurnameProvider
+	hub      *Hub
+	conn     *websocket.Conn
+	send     chan *Message
+	userID   uuid.UUID
+	provider Provider
 }
 
-func ServeWS(hub *Hub, surnameProvider SurnameProvider, w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
+func ServeWS(hub *Hub, provider Provider, w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade failed: %v", err)
@@ -68,11 +65,11 @@ func ServeWS(hub *Hub, surnameProvider SurnameProvider, w http.ResponseWriter, r
 	}
 
 	client := &Client{
-		hub:             hub,
-		conn:            conn,
-		send:            make(chan *Message, 256),
-		userID:          userID,
-		surnameProvider: surnameProvider,
+		hub:      hub,
+		conn:     conn,
+		send:     make(chan *Message, 256),
+		userID:   userID,
+		provider: provider,
 	}
 
 	client.hub.register <- client
@@ -106,40 +103,55 @@ func (c *Client) readPump() {
 
 		message.UserID = c.userID
 
-		// Handle different message types - only allow specific client types
 		switch message.Type {
 		case "chat":
-			// Server controls the username - never trust client
 			if message.Data == nil {
 				message.Data = make(map[string]interface{})
 			}
 			message.Data["user_id"] = c.userID.String()
 			
-			// Get surname from database
-			surname, err := c.surnameProvider.GetSurnameById(context.Background(), c.userID)
+			surname, err := c.provider.GetSurnameById(context.Background(), c.userID)
 			if err != nil {
 				log.Printf("Failed to get surname for user %s: %v", c.userID, err)
 				surname = "Unknown User"
 			}
 			message.Data["surname"] = surname
 			
-			// Include character name from client message if provided
-			if characterName, exists := message.Data["character_name"]; exists {
-				message.Data["character_name"] = characterName
+			if characterNameInterface, exists := message.Data["character_name"]; exists {
+				characterName, ok := characterNameInterface.(string)
+				if ok && characterName != "" {
+					isValid, err := c.provider.ValidateCharacterOwnership(context.Background(), characterName, c.userID)
+					if err != nil {
+						log.Printf("Error validating character %s for user %s: %v", characterName, c.userID, err)
+						c.send <- &Message{
+							Type: "error",
+							Data: map[string]interface{}{"message": "Character not found"},
+						}
+						continue
+					}
+					
+					if !isValid {
+						log.Printf("User %s attempted to use character %s they don't own", c.userID, characterName)
+						c.send <- &Message{
+							Type: "error",
+							Data: map[string]interface{}{"message": "You don't own that character"},
+						}
+						continue
+					}
+					
+					message.Data["character_name"] = characterName
+				}
 			}
 			
-			// Set To field to broadcast to all users
 			message.To = "all"
 			
 			c.hub.broadcast <- &message
 		case "ping":
-			// Send pong back to this client
 			c.send <- &Message{
 				Type: "pong",
 				Data: map[string]interface{}{"timestamp": time.Now().Unix()},
 			}
 		case "notification", "system":
-			// SECURITY: Never allow clients to send notifications or system messages
 			log.Printf("Client %s attempted to send restricted message type: %s", c.userID, message.Type)
 		default:
 			log.Printf("Client %s sent unknown message type: %s", c.userID, message.Type)

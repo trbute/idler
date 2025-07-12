@@ -1,8 +1,6 @@
 package websocket
 
 import (
-	"log"
-	
 	"github.com/google/uuid"
 )
 
@@ -34,17 +32,14 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.clients[client.userID] = client
-			log.Printf("WebSocket client registered: %s (total clients: %d)", client.userID, len(h.clients))
 
 		case client := <-h.unregister:
 			if _, ok := h.clients[client.userID]; ok {
 				delete(h.clients, client.userID)
 				close(client.send)
-				log.Printf("WebSocket client unregistered: %s (total clients: %d)", client.userID, len(h.clients))
 			}
 
 		case message := <-h.broadcast:
-			log.Printf("Broadcasting message type '%s' to '%s', %d clients connected", message.Type, message.To, len(h.clients))
 			if message.To == "all" {
 				for _, client := range h.clients {
 					select {
@@ -88,7 +83,6 @@ func (h *Hub) SendToAll(msgType string, data map[string]interface{}) {
 	h.broadcast <- message
 }
 
-// Server-only methods for sending secure message types
 func (h *Hub) SendNotificationToUser(userID uuid.UUID, message string, severity string) {
 	data := map[string]interface{}{
 		"message":  message,

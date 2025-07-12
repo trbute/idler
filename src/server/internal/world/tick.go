@@ -2,7 +2,6 @@ package world
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -22,7 +21,6 @@ type WorldConfig struct {
 }
 
 func (cfg *WorldConfig) ProcessTicks() {
-	fmt.Println("starting tick system")
 	ticker := time.NewTicker(cfg.TickRate)
 	defer ticker.Stop()
 

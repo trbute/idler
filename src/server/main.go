@@ -71,7 +71,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to connect to Redis: %v", err)
 	}
-	fmt.Println("Connected to Redis")
 	defer rdb.Close()
 
 	hub := websocket.NewHub()

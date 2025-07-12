@@ -65,6 +65,9 @@ func (m *loginModel) Update(msg tea.Msg) tea.Cmd {
 		m.subText = msg.text
 		if m.subTextColor == Green {
 			m.currentPage = UI
+			return func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			}
 		}
 	case tea.KeyMsg:
 		switch msg.String() {

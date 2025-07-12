@@ -69,7 +69,6 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	state.apiUrl = os.Getenv("API_URL")
 	state.wsUrl = os.Getenv("WS_URL")
 	
-	// Fallback to derive WebSocket URL from API URL if WS_URL is not set
 	if state.wsUrl == "" && state.apiUrl != "" {
 		state.wsUrl = strings.Replace(state.apiUrl, "http", "ws", 1) + "/ws"
 	}

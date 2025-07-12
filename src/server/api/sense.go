@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
 	"github.com/trbute/idler/server/internal/database"
 )
@@ -35,19 +34,14 @@ func (cfg *ApiConfig) handleGetArea(w http.ResponseWriter, r *http.Request) {
 	}
 
 	charName := r.PathValue("character")
-	char, err := cfg.GetCharacterByName(r.Context(), charName)
+	
+	char, err := cfg.GetCharacterWithOwnershipValidation(r.Context(), charName, userId)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
-		return
-	}
-
-	pgUserId := pgtype.UUID{
-		Bytes: userId,
-		Valid: true,
-	}
-
-	if char.UserID != pgUserId {
-		respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", err)
+		if err.Error() == "character doesn't belong to user" {
+			respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", nil)
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "Unable to retrieve character", err)
+		}
 		return
 	}
 
