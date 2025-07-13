@@ -71,6 +71,23 @@ func (q *Queries) DeleteEmptyInventoryItems(ctx context.Context, inventoryID pgt
 	return err
 }
 
+const getInventoryItemQuantity = `-- name: GetInventoryItemQuantity :one
+SELECT quantity FROM inventory_items
+WHERE inventory_id = $1 AND item_id = $2
+`
+
+type GetInventoryItemQuantityParams struct {
+	InventoryID pgtype.UUID
+	ItemID      int32
+}
+
+func (q *Queries) GetInventoryItemQuantity(ctx context.Context, arg GetInventoryItemQuantityParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getInventoryItemQuantity, arg.InventoryID, arg.ItemID)
+	var quantity int32
+	err := row.Scan(&quantity)
+	return quantity, err
+}
+
 const getInventoryItemsByInventoryId = `-- name: GetInventoryItemsByInventoryId :many
 SELECT id, item_id, inventory_id, quantity, created_at, updated_at FROM inventory_items
 WHERE inventory_id = $1

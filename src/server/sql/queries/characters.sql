@@ -28,12 +28,31 @@ SET action_id = $1,
 WHERE id = $2
 RETURNING *;
 
--- name: UpdateCharacterByIdWithTarget :one
+-- name: UpdateCharacterByIdWithTargetAndAmount :one
 UPDATE characters
 SET action_id = $1,
 	action_target = $2,
+	action_amount_limit = $3,
+	action_amount_progress = 0,
 	updated_at = NOW()
-WHERE id = $3
+WHERE id = $4
+RETURNING *;
+
+-- name: UpdateCharacterProgress :one
+UPDATE characters
+SET action_amount_progress = $1,
+	updated_at = NOW()
+WHERE id = $2
+RETURNING *;
+
+-- name: SetCharacterToIdleAndResetGathering :one
+UPDATE characters
+SET action_id = $1,
+	action_target = NULL,
+	action_amount_limit = NULL,
+	action_amount_progress = 0,
+	updated_at = NOW()
+WHERE id = $2
 RETURNING *;
 
 -- name: GetActiveCharacters :many

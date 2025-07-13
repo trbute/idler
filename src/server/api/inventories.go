@@ -98,6 +98,7 @@ func (cfg *ApiConfig) handleDropItem(w http.ResponseWriter, r *http.Request) {
 		CharacterName string `json:"character_name"`
 		ItemName      string `json:"item_name"`
 		Quantity      int32  `json:"quantity"`
+		DropAll       bool   `json:"drop_all"`
 	}
 	params := parameters{}
 	decoder := json.NewDecoder(r.Body)
@@ -117,7 +118,7 @@ func (cfg *ApiConfig) handleDropItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.Quantity <= 0 {
+	if !params.DropAll && params.Quantity <= 0 {
 		respondWithError(w, http.StatusBadRequest, "Quantity must be greater than 0", nil)
 		return
 	}
@@ -144,14 +145,34 @@ func (cfg *ApiConfig) handleDropItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = cfg.DropItemFromInventory(r.Context(), inventory.ID, item.ID, params.Quantity)
+	var quantityToDrop int32
+	var messageStr string
+	
+	if params.DropAll {
+		// Get current quantity of this item
+		currentQuantity, err := cfg.DB.GetInventoryItemQuantity(r.Context(), database.GetInventoryItemQuantityParams{
+			InventoryID: inventory.ID,
+			ItemID:      item.ID,
+		})
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Item not found in inventory", err)
+			return
+		}
+		quantityToDrop = currentQuantity
+		messageStr = fmt.Sprintf("Dropped all %d %s", quantityToDrop, strings.Title(strings.ToLower(item.Name)))
+	} else {
+		quantityToDrop = params.Quantity
+		messageStr = fmt.Sprintf("Dropped %d %s", quantityToDrop, strings.Title(strings.ToLower(item.Name)))
+	}
+
+	err = cfg.DropItemFromInventory(r.Context(), inventory.ID, item.ID, quantityToDrop)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to drop item: "+err.Error(), err)
 		return
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]interface{}{
-		"message": fmt.Sprintf("Dropped %d %s", params.Quantity, strings.Title(strings.ToLower(item.Name))),
+		"message": messageStr,
 	})
 }
 
@@ -327,13 +348,28 @@ func (cfg *ApiConfig) UpdateInventoryWeight(ctx context.Context, inventoryID pgt
 }
 
 func (cfg *ApiConfig) DropItemFromInventory(ctx context.Context, inventoryID pgtype.UUID, itemID int32, quantity int32) error {
-	err := cfg.DB.RemoveItemsFromInventory(ctx, database.RemoveItemsFromInventoryParams{
+	// First check if the item exists and get its current quantity
+	currentQuantity, err := cfg.DB.GetInventoryItemQuantity(ctx, database.GetInventoryItemQuantityParams{
+		InventoryID: inventoryID,
+		ItemID:      itemID,
+	})
+	if err != nil {
+		return fmt.Errorf("item not found in inventory")
+	}
+
+	// Check if we have enough quantity to drop
+	if currentQuantity < quantity {
+		return fmt.Errorf("insufficient quantity: have %d, trying to drop %d", currentQuantity, quantity)
+	}
+
+	// Proceed with the removal
+	err = cfg.DB.RemoveItemsFromInventory(ctx, database.RemoveItemsFromInventoryParams{
 		InventoryID: inventoryID,
 		ItemID:      itemID,
 		Quantity:    quantity,
 	})
 	if err != nil {
-		return fmt.Errorf("insufficient quantity or item not found")
+		return fmt.Errorf("failed to remove items from inventory: %v", err)
 	}
 
 	err = cfg.DB.DeleteEmptyInventoryItems(ctx, inventoryID)

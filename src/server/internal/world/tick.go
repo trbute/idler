@@ -2,11 +2,13 @@ package world
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/server/api"
 	"github.com/trbute/idler/server/internal/database"
@@ -75,6 +77,20 @@ func (cfg *WorldConfig) processResourceGathering(char database.Character) *api.I
 		return nil
 	}
 
+	// Check if character has reached their gathering limit
+	if char.ActionAmountLimit.Valid && char.ActionAmountProgress.Valid {
+		if char.ActionAmountProgress.Int32 >= char.ActionAmountLimit.Int32 {
+			err := cfg.ApiConfig.SetCharacterToIdle(ctx, char.ID)
+			if err != nil {
+				log.Printf("Failed to set character %s to idle: %v", char.Name, err)
+			}
+			message := fmt.Sprintf("Character %s finished gathering %d items and is now idle",
+				char.Name, char.ActionAmountLimit.Int32)
+			cfg.ApiConfig.Hub.SendNotificationToUser(char.UserID.Bytes, message, "info")
+			return nil
+		}
+	}
+
 	inventory, err := cfg.GetInventoryByCharacterId(ctx, char.ID)
 	if err != nil {
 		log.Printf("Error getting inventory for character %s: %v", char.Name, err)
@@ -99,6 +115,18 @@ func (cfg *WorldConfig) processResourceGathering(char database.Character) *api.I
 	}
 
 	drop := cfg.rollDrop(resources)
+
+	// Increment progress if character has a limit set
+	if char.ActionAmountLimit.Valid {
+		newProgress := char.ActionAmountProgress.Int32 + 1
+		_, err = cfg.DB.UpdateCharacterProgress(ctx, database.UpdateCharacterProgressParams{
+			ActionAmountProgress: pgtype.Int4{Int32: newProgress, Valid: true},
+			ID:                   char.ID,
+		})
+		if err != nil {
+			log.Printf("Failed to update character progress for %s: %v", char.Name, err)
+		}
+	}
 
 	return &api.InventoryUpdate{
 		InventoryID: inventory.ID,

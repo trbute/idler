@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -142,9 +143,26 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 					if m.selectedChar == "" {
 						output = "No character selected. Use 'sel <character>' first"
 						outputColor = Red
+					} else if len(command) < 2 {
+						output = "Usage: act <target> [amount]"
+						outputColor = Red
 					} else {
-						target := strings.ToUpper(strings.Join(command[1:], " "))
-						return m.setAction(target)
+						var target string
+						var amount *int
+						
+						// Check if last argument is a number (amount)
+						if len(command) >= 3 {
+							if lastArg, err := strconv.Atoi(command[len(command)-1]); err == nil && lastArg > 0 {
+								amount = &lastArg
+								target = strings.ToUpper(strings.Join(command[1:len(command)-1], " "))
+							} else {
+								target = strings.ToUpper(strings.Join(command[1:], " "))
+							}
+						} else {
+							target = strings.ToUpper(command[1])
+						}
+						
+						return m.setActionWithAmount(target, amount)
 					}
 				case "sense":
 					return m.getArea()
@@ -155,9 +173,7 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 						output = "Usage: sel <character>"
 						outputColor = Red
 					} else {
-						m.selectedChar = command[1]
-						output = fmt.Sprintf("Selected %v", m.selectedChar)
-						outputColor = Green
+						return m.selectCharacter(command[1])
 					}
 				case "newchar":
 					if len(command) > 2 {
@@ -177,13 +193,24 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 				case "idle":
 					return m.setIdle()
 				case "drop":
-					if len(command) < 3 {
-						output = "Usage: drop <item_name> <quantity>"
+					if len(command) < 2 {
+						output = "Usage: drop <item_name> [quantity]"
 						outputColor = Red
+					} else if len(command) == 2 {
+						// Drop all items of this type
+						itemName := command[1]
+						return m.dropItemAll(itemName)
 					} else {
-						quantity := command[len(command)-1]
-						itemName := strings.Join(command[1:len(command)-1], " ")
-						return m.dropItem(itemName, quantity)
+						// Check if last argument is a number (quantity)
+						lastArg := command[len(command)-1]
+						if quantity, err := strconv.Atoi(lastArg); err == nil && quantity > 0 {
+							itemName := strings.Join(command[1:len(command)-1], " ")
+							return m.dropItem(itemName, lastArg)
+						} else {
+							// Last argument is not a number, treat as part of item name
+							itemName := strings.Join(command[1:], " ")
+							return m.dropItemAll(itemName)
+						}
 					}
 				case "?":
 					if len(command) == 1 {

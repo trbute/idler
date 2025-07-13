@@ -20,7 +20,7 @@ VALUES (
 	NOW(),
 	NOW()
 )
-RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at
+RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress
 `
 
 type CreateCharacterParams struct {
@@ -41,12 +41,14 @@ func (q *Queries) CreateCharacter(ctx context.Context, arg CreateCharacterParams
 		&i.ActionTarget,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ActionAmountLimit,
+		&i.ActionAmountProgress,
 	)
 	return i, err
 }
 
 const getActiveCharacters = `-- name: GetActiveCharacters :many
-SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at FROM characters
+SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress FROM characters
 WHERE action_id != 1
 `
 
@@ -69,6 +71,8 @@ func (q *Queries) GetActiveCharacters(ctx context.Context) ([]Character, error) 
 			&i.ActionTarget,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ActionAmountLimit,
+			&i.ActionAmountProgress,
 		); err != nil {
 			return nil, err
 		}
@@ -81,7 +85,7 @@ func (q *Queries) GetActiveCharacters(ctx context.Context) ([]Character, error) 
 }
 
 const getCharacterById = `-- name: GetCharacterById :one
-SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at from characters
+SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress from characters
 WHERE id = $1
 `
 
@@ -98,12 +102,14 @@ func (q *Queries) GetCharacterById(ctx context.Context, id pgtype.UUID) (Charact
 		&i.ActionTarget,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ActionAmountLimit,
+		&i.ActionAmountProgress,
 	)
 	return i, err
 }
 
 const getCharacterByName = `-- name: GetCharacterByName :one
-SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at from characters
+SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress from characters
 where name = $1
 `
 
@@ -120,12 +126,14 @@ func (q *Queries) GetCharacterByName(ctx context.Context, name string) (Characte
 		&i.ActionTarget,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ActionAmountLimit,
+		&i.ActionAmountProgress,
 	)
 	return i, err
 }
 
 const getCharactersByCoordinates = `-- name: GetCharactersByCoordinates :many
-SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at from characters
+SELECT id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress from characters
 WHERE position_x = $1 AND position_y = $2
 `
 
@@ -153,6 +161,8 @@ func (q *Queries) GetCharactersByCoordinates(ctx context.Context, arg GetCharact
 			&i.ActionTarget,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ActionAmountLimit,
+			&i.ActionAmountProgress,
 		); err != nil {
 			return nil, err
 		}
@@ -164,12 +174,47 @@ func (q *Queries) GetCharactersByCoordinates(ctx context.Context, arg GetCharact
 	return items, nil
 }
 
+const setCharacterToIdleAndResetGathering = `-- name: SetCharacterToIdleAndResetGathering :one
+UPDATE characters
+SET action_id = $1,
+	action_target = NULL,
+	action_amount_limit = NULL,
+	action_amount_progress = 0,
+	updated_at = NOW()
+WHERE id = $2
+RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress
+`
+
+type SetCharacterToIdleAndResetGatheringParams struct {
+	ActionID int32
+	ID       pgtype.UUID
+}
+
+func (q *Queries) SetCharacterToIdleAndResetGathering(ctx context.Context, arg SetCharacterToIdleAndResetGatheringParams) (Character, error) {
+	row := q.db.QueryRow(ctx, setCharacterToIdleAndResetGathering, arg.ActionID, arg.ID)
+	var i Character
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.PositionX,
+		&i.PositionY,
+		&i.ActionID,
+		&i.ActionTarget,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ActionAmountLimit,
+		&i.ActionAmountProgress,
+	)
+	return i, err
+}
+
 const updateCharacterById = `-- name: UpdateCharacterById :one
 UPDATE characters
 SET action_id = $1, 
 	updated_at = NOW()
 WHERE id = $2
-RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at
+RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress
 `
 
 type UpdateCharacterByIdParams struct {
@@ -190,27 +235,37 @@ func (q *Queries) UpdateCharacterById(ctx context.Context, arg UpdateCharacterBy
 		&i.ActionTarget,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ActionAmountLimit,
+		&i.ActionAmountProgress,
 	)
 	return i, err
 }
 
-const updateCharacterByIdWithTarget = `-- name: UpdateCharacterByIdWithTarget :one
+const updateCharacterByIdWithTargetAndAmount = `-- name: UpdateCharacterByIdWithTargetAndAmount :one
 UPDATE characters
 SET action_id = $1,
 	action_target = $2,
+	action_amount_limit = $3,
+	action_amount_progress = 0,
 	updated_at = NOW()
-WHERE id = $3
-RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at
+WHERE id = $4
+RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress
 `
 
-type UpdateCharacterByIdWithTargetParams struct {
-	ActionID     int32
-	ActionTarget pgtype.Int4
-	ID           pgtype.UUID
+type UpdateCharacterByIdWithTargetAndAmountParams struct {
+	ActionID          int32
+	ActionTarget      pgtype.Int4
+	ActionAmountLimit pgtype.Int4
+	ID                pgtype.UUID
 }
 
-func (q *Queries) UpdateCharacterByIdWithTarget(ctx context.Context, arg UpdateCharacterByIdWithTargetParams) (Character, error) {
-	row := q.db.QueryRow(ctx, updateCharacterByIdWithTarget, arg.ActionID, arg.ActionTarget, arg.ID)
+func (q *Queries) UpdateCharacterByIdWithTargetAndAmount(ctx context.Context, arg UpdateCharacterByIdWithTargetAndAmountParams) (Character, error) {
+	row := q.db.QueryRow(ctx, updateCharacterByIdWithTargetAndAmount,
+		arg.ActionID,
+		arg.ActionTarget,
+		arg.ActionAmountLimit,
+		arg.ID,
+	)
 	var i Character
 	err := row.Scan(
 		&i.ID,
@@ -222,6 +277,40 @@ func (q *Queries) UpdateCharacterByIdWithTarget(ctx context.Context, arg UpdateC
 		&i.ActionTarget,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ActionAmountLimit,
+		&i.ActionAmountProgress,
+	)
+	return i, err
+}
+
+const updateCharacterProgress = `-- name: UpdateCharacterProgress :one
+UPDATE characters
+SET action_amount_progress = $1,
+	updated_at = NOW()
+WHERE id = $2
+RETURNING id, user_id, name, position_x, position_y, action_id, action_target, created_at, updated_at, action_amount_limit, action_amount_progress
+`
+
+type UpdateCharacterProgressParams struct {
+	ActionAmountProgress pgtype.Int4
+	ID                   pgtype.UUID
+}
+
+func (q *Queries) UpdateCharacterProgress(ctx context.Context, arg UpdateCharacterProgressParams) (Character, error) {
+	row := q.db.QueryRow(ctx, updateCharacterProgress, arg.ActionAmountProgress, arg.ID)
+	var i Character
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.PositionX,
+		&i.PositionY,
+		&i.ActionID,
+		&i.ActionTarget,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ActionAmountLimit,
+		&i.ActionAmountProgress,
 	)
 	return i, err
 }

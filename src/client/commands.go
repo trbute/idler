@@ -67,73 +67,6 @@ func (m *uiModel) createCharacter(charName string) tea.Cmd {
 	}
 }
 
-func (m *uiModel) setAction(target string) tea.Cmd {
-	return func() tea.Msg {
-		data := map[string]string{
-			"character_name": m.selectedChar,
-			"target":         target,
-		}
-
-		jsonData, err := json.Marshal(data)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req, err := http.NewRequest(
-			"PUT",
-			m.apiUrl+"/characters",
-			bytes.NewBuffer(jsonData),
-		)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		defer res.Body.Close()
-
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		bodyStr := ""
-		resColor := Red
-		if res.StatusCode == 201 {
-			caser := cases.Title(language.English)
-			resColor = Green
-
-			var response map[string]interface{}
-			json.Unmarshal(body, &response)
-			actionName := response["action_name"].(string)
-
-			bodyStr = fmt.Sprintf(
-				"%v started %v on %v",
-				caser.String(m.selectedChar),
-				caser.String(actionName),
-				caser.String(target),
-			)
-
-		} else {
-			resColor = Red
-			var errResp ErrorResponse
-			if err := json.Unmarshal(body, &errResp); err != nil {
-				bodyStr = "Failed to parse error response"
-			} else {
-				bodyStr = errResp.Error
-			}
-		}
-
-		return apiResMsg{resColor, bodyStr}
-	}
-}
 
 func (m *uiModel) getArea() tea.Cmd {
 	return func() tea.Msg {
@@ -398,6 +331,192 @@ func (m *uiModel) dropItem(itemName, quantityStr string) tea.Cmd {
 				bodyStr = "Item dropped successfully"
 			}
 		} else {
+			var errResp ErrorResponse
+			if err := json.Unmarshal(body, &errResp); err != nil {
+				bodyStr = "Failed to parse error response"
+			} else {
+				bodyStr = errResp.Error
+			}
+		}
+
+		return apiResMsg{resColor, bodyStr}
+	}
+}
+
+func (m *uiModel) dropItemAll(itemName string) tea.Cmd {
+	return func() tea.Msg {
+		if m.selectedChar == "" {
+			return apiResMsg{Red, "No character selected. Use 'sel <character>' first"}
+		}
+
+		data := map[string]interface{}{
+			"character_name": m.selectedChar,
+			"item_name":      itemName,
+			"drop_all":       true,
+		}
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req, err := http.NewRequest(
+			"POST",
+			m.apiUrl+"/inventory/drop",
+			bytes.NewBuffer(jsonData),
+		)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+m.userToken)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		var bodyStr string
+		var resColor Color
+		if res.StatusCode == 200 {
+			resColor = Green
+			var response map[string]interface{}
+			if err := json.Unmarshal(body, &response); err == nil {
+				if msg, ok := response["message"].(string); ok {
+					bodyStr = msg
+				} else {
+					bodyStr = "All items dropped successfully"
+				}
+			} else {
+				bodyStr = "All items dropped successfully"
+			}
+		} else {
+			resColor = Red
+			var errResp ErrorResponse
+			if err := json.Unmarshal(body, &errResp); err != nil {
+				bodyStr = "Failed to parse error response"
+			} else {
+				bodyStr = errResp.Error
+			}
+		}
+
+		return apiResMsg{resColor, bodyStr}
+	}
+}
+
+func (m *uiModel) setActionWithAmount(target string, amount *int) tea.Cmd {
+	return func() tea.Msg {
+		data := map[string]interface{}{
+			"character_name": m.selectedChar,
+			"target":         target,
+		}
+		
+		if amount != nil {
+			data["amount"] = *amount
+		}
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req, err := http.NewRequest(
+			"PUT",
+			m.apiUrl+"/characters",
+			bytes.NewBuffer(jsonData),
+		)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+m.userToken)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		bodyStr := ""
+		resColor := Red
+		if res.StatusCode == 201 {
+			caser := cases.Title(language.English)
+			resColor = Green
+
+			var response map[string]interface{}
+			json.Unmarshal(body, &response)
+			actionName := response["action_name"].(string)
+
+			bodyStr = fmt.Sprintf(
+				"%v started %v on %v",
+				caser.String(m.selectedChar),
+				caser.String(actionName),
+				caser.String(target),
+			)
+
+		} else {
+			resColor = Red
+			var errResp ErrorResponse
+			if err := json.Unmarshal(body, &errResp); err != nil {
+				bodyStr = "Failed to parse error response"
+			} else {
+				bodyStr = errResp.Error
+			}
+		}
+
+		return apiResMsg{resColor, bodyStr}
+	}
+}
+
+func (m *uiModel) selectCharacter(charName string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(
+			"GET",
+			m.apiUrl+fmt.Sprintf("/characters/%s/select", charName),
+			nil,
+		)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req.Header.Set("Authorization", "Bearer "+m.userToken)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		var bodyStr string
+		var resColor Color
+		if res.StatusCode == 200 {
+			resColor = Green
+			m.selectedChar = charName
+			bodyStr = fmt.Sprintf("Selected %v", charName)
+		} else {
+			resColor = Red
 			var errResp ErrorResponse
 			if err := json.Unmarshal(body, &errResp); err != nil {
 				bodyStr = "Failed to parse error response"

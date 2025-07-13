@@ -98,6 +98,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 	type parameters struct {
 		CharacterName string `json:"character_name"`
 		Target        string `json:"target"`
+		Amount        *int   `json:"amount,omitempty"`
 	}
 	params := parameters{}
 	decoder := json.NewDecoder(r.Body)
@@ -186,10 +187,18 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		_ = bestTier
 	}
 
-	char, err := cfg.DB.UpdateCharacterByIdWithTarget(r.Context(), database.UpdateCharacterByIdWithTargetParams{
-		ActionID:     action.ID,
-		ActionTarget: actionTarget,
-		ID:           character.ID,
+	var amountLimit pgtype.Int4
+	if params.Amount != nil && *params.Amount > 0 {
+		amountLimit = pgtype.Int4{Int32: int32(*params.Amount), Valid: true}
+	} else {
+		amountLimit = pgtype.Int4{Valid: false} // NULL - resets any existing limit
+	}
+
+	char, err := cfg.DB.UpdateCharacterByIdWithTargetAndAmount(r.Context(), database.UpdateCharacterByIdWithTargetAndAmountParams{
+		ActionID:          action.ID,
+		ActionTarget:      actionTarget,
+		ActionAmountLimit: amountLimit,
+		ID:                character.ID,
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Character update failed", err)
@@ -292,10 +301,48 @@ func (cfg *ApiConfig) SetCharacterToIdle(ctx context.Context, characterID pgtype
 		return err
 	}
 
-	_, err = cfg.DB.UpdateCharacterByIdWithTarget(ctx, database.UpdateCharacterByIdWithTargetParams{
-		ActionID:     idleAction.ID,
-		ActionTarget: pgtype.Int4{Valid: false},
-		ID:           characterID,
+	_, err = cfg.DB.SetCharacterToIdleAndResetGathering(ctx, database.SetCharacterToIdleAndResetGatheringParams{
+		ActionID: idleAction.ID,
+		ID:       characterID,
 	})
 	return err
+}
+
+func (cfg *ApiConfig) handleSelectCharacter(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unable to retrieve token", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
+		return
+	}
+
+	characterName := r.PathValue("character")
+	if characterName == "" {
+		respondWithError(w, http.StatusBadRequest, "Character name is required", nil)
+		return
+	}
+
+	character, err := cfg.GetCharacterWithOwnershipValidation(r.Context(), characterName, userID)
+	if err != nil {
+		if err.Error() == "character doesn't belong to user" {
+			respondWithError(w, http.StatusUnauthorized, "Character doesn't belong to user", nil)
+		} else {
+			respondWithError(w, http.StatusNotFound, "Character not found", err)
+		}
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, Character{
+		ID:        character.ID,
+		UserID:    character.UserID,
+		Name:      character.Name,
+		ActionID:  character.ActionID,
+		CreatedAt: character.CreatedAt,
+		UpdatedAt: character.UpdatedAt,
+	})
 }

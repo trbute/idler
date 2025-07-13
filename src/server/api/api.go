@@ -29,6 +29,7 @@ func (cfg *ApiConfig) ServeApi() {
 	mux.HandleFunc("PUT /api/users", cfg.handleUpdateUser)
 	mux.HandleFunc("POST /api/characters", cfg.handleCreateCharacter)
 	mux.HandleFunc("PUT /api/characters", cfg.handleUpdateCharacter)
+	mux.HandleFunc("GET /api/characters/{character}/select", cfg.handleSelectCharacter)
 	mux.HandleFunc("GET /api/actions", cfg.handleGetActions)
 	mux.HandleFunc("GET /api/sense/area/{character}", cfg.handleGetArea)
 	mux.HandleFunc("GET /api/inventory/{character}", cfg.handleGetInventory)

@@ -45,7 +45,7 @@ func InitSignupModel(state *sharedState) *signupModel {
 	m.fields = append(m.fields, password)
 
 	passwordConfirm := textinput.New()
-	passwordConfirm.Placeholder = "confirm"
+	passwordConfirm.Placeholder = "confirm password"
 	passwordConfirm.Width = 30
 	passwordConfirm.EchoMode = textinput.EchoPassword
 	passwordConfirm.EchoCharacter = '•'

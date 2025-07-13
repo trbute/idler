@@ -15,15 +15,17 @@ type Action struct {
 }
 
 type Character struct {
-	ID           pgtype.UUID
-	UserID       pgtype.UUID
-	Name         string
-	PositionX    int32
-	PositionY    int32
-	ActionID     int32
-	ActionTarget pgtype.Int4
-	CreatedAt    pgtype.Timestamp
-	UpdatedAt    pgtype.Timestamp
+	ID                   pgtype.UUID
+	UserID               pgtype.UUID
+	Name                 string
+	PositionX            int32
+	PositionY            int32
+	ActionID             int32
+	ActionTarget         pgtype.Int4
+	CreatedAt            pgtype.Timestamp
+	UpdatedAt            pgtype.Timestamp
+	ActionAmountLimit    pgtype.Int4
+	ActionAmountProgress pgtype.Int4
 }
 
 type Grid struct {

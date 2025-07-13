@@ -24,6 +24,10 @@ UPDATE inventory_items
 SET quantity = quantity - $3, updated_at = NOW()
 WHERE inventory_id = $1 AND item_id = $2 AND quantity >= $3;
 
+-- name: GetInventoryItemQuantity :one
+SELECT quantity FROM inventory_items
+WHERE inventory_id = $1 AND item_id = $2;
+
 -- name: DeleteEmptyInventoryItems :exec
 DELETE FROM inventory_items
 WHERE inventory_id = $1 AND quantity <= 0;
