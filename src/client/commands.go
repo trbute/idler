@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,22 +22,9 @@ func (m *uiModel) createCharacter(charName string) tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		req, err := http.NewRequest(
-			"POST",
-			m.apiUrl+"/characters",
-			bytes.NewBuffer(jsonData),
-		)
+		res, err := m.makeAuthenticatedRequest("POST", "/characters", jsonData)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 		defer res.Body.Close()
 
@@ -75,22 +60,9 @@ func (m *uiModel) getArea() tea.Cmd {
 			return apiResMsg{Red, "No character selected"}
 		}
 
-		req, err := http.NewRequest(
-			"GET",
-			m.apiUrl+fmt.Sprintf("/sense/area/%v", m.selectedChar),
-			nil,
-		)
+		res, err := m.makeAuthenticatedRequest("GET", fmt.Sprintf("/sense/area/%v", m.selectedChar), nil)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 		defer res.Body.Close()
 
@@ -156,22 +128,9 @@ func (m *uiModel) getInventory() tea.Cmd {
 			return apiResMsg{Red, "No character selected"}
 		}
 
-		req, err := http.NewRequest(
-			"GET",
-			m.apiUrl+fmt.Sprintf("/inventory/%v", m.selectedChar),
-			nil,
-		)
+		res, err := m.makeAuthenticatedRequest("GET", fmt.Sprintf("/inventory/%v", m.selectedChar), nil)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 		defer res.Body.Close()
 
@@ -228,22 +187,9 @@ func (m *uiModel) setIdle() tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		req, err := http.NewRequest(
-			"PUT",
-			m.apiUrl+"/characters",
-			bytes.NewBuffer(jsonData),
-		)
+		res, err := m.makeAuthenticatedRequest("PUT", "/characters", jsonData)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 
 		defer res.Body.Close()
@@ -293,22 +239,9 @@ func (m *uiModel) dropItem(itemName, quantityStr string) tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		req, err := http.NewRequest(
-			"POST",
-			m.apiUrl+"/inventory/drop",
-			bytes.NewBuffer(jsonData),
-		)
+		res, err := m.makeAuthenticatedRequest("POST", "/inventory/drop", jsonData)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 
 		defer res.Body.Close()
@@ -362,22 +295,9 @@ func (m *uiModel) dropItemAll(itemName string) tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		req, err := http.NewRequest(
-			"POST",
-			m.apiUrl+"/inventory/drop",
-			bytes.NewBuffer(jsonData),
-		)
+		res, err := m.makeAuthenticatedRequest("POST", "/inventory/drop", jsonData)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 		defer res.Body.Close()
 
@@ -430,22 +350,9 @@ func (m *uiModel) setActionWithAmount(target string, amount *int) tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		req, err := http.NewRequest(
-			"PUT",
-			m.apiUrl+"/characters",
-			bytes.NewBuffer(jsonData),
-		)
+		res, err := m.makeAuthenticatedRequest("PUT", "/characters", jsonData)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 
 		defer res.Body.Close()
@@ -488,21 +395,9 @@ func (m *uiModel) setActionWithAmount(target string, amount *int) tea.Cmd {
 
 func (m *uiModel) selectCharacter(charName string) tea.Cmd {
 	return func() tea.Msg {
-		req, err := http.NewRequest(
-			"GET",
-			m.apiUrl+fmt.Sprintf("/characters/%s/select", charName),
-			nil,
-		)
+		res, err := m.makeAuthenticatedRequest("GET", fmt.Sprintf("/characters/%s/select", charName), nil)
 		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		req.Header.Set("Authorization", "Bearer "+m.userToken)
-
-		client := &http.Client{}
-		res, err := client.Do(req)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
+			return m.handleAPIError(err)
 		}
 		defer res.Body.Close()
 

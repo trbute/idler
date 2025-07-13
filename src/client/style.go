@@ -7,6 +7,7 @@ type Color string
 const (
 	Red     Color = "1"
 	Green   Color = "2"
+	Yellow  Color = "3"
 	Blue    Color = "4"
 	Magenta Color = "5"
 	Cyan    Color = "6"

@@ -5,7 +5,7 @@ import (
 )
 
 type Hub struct {
-	clients    map[uuid.UUID]*Client
+	clients    map[string]*Client // Use tokenID as key instead of userID
 	broadcast  chan *Message
 	register   chan *Client
 	unregister chan *Client
@@ -20,7 +20,7 @@ type Message struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		clients:    make(map[uuid.UUID]*Client),
+		clients:    make(map[string]*Client),
 		broadcast:  make(chan *Message, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
@@ -31,11 +31,11 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.clients[client.userID] = client
+			h.clients[client.tokenID] = client
 
 		case client := <-h.unregister:
-			if _, ok := h.clients[client.userID]; ok {
-				delete(h.clients, client.userID)
+			if _, ok := h.clients[client.tokenID]; ok {
+				delete(h.clients, client.tokenID)
 				close(client.send)
 			}
 
@@ -46,17 +46,19 @@ func (h *Hub) Run() {
 					case client.send <- message:
 					default:
 						close(client.send)
-						delete(h.clients, client.userID)
+						delete(h.clients, client.tokenID)
 					}
 				}
 			} else if message.To != "" {
 				if targetID, err := uuid.Parse(message.To); err == nil {
-					if client, ok := h.clients[targetID]; ok {
-						select {
-						case client.send <- message:
-						default:
-							close(client.send)
-							delete(h.clients, client.userID)
+					for _, client := range h.clients {
+						if client.userID == targetID {
+							select {
+							case client.send <- message:
+							default:
+								close(client.send)
+								delete(h.clients, client.tokenID)
+							}
 						}
 					}
 				}
@@ -96,4 +98,20 @@ func (h *Hub) SendSystemMessage(message string) {
 		"message": message,
 	}
 	h.SendToAll("system", data)
+}
+
+func (h *Hub) DisconnectClientByToken(tokenID string) {
+	if client, ok := h.clients[tokenID]; ok {
+		// Send session expired message
+		select {
+		case client.send <- &Message{
+			Type: "error",
+			Data: map[string]interface{}{"message": "Session expired. Please reconnect."},
+		}:
+		default:
+		}
+		
+		// Trigger unregister
+		h.unregister <- client
+	}
 }

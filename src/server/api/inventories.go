@@ -33,7 +33,7 @@ func (cfg *ApiConfig) handleGetInventory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	userId, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	userId, err := auth.ValidateJWTWithBlacklist(r.Context(), token, cfg.JwtSecret, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return
@@ -98,7 +98,7 @@ func (cfg *ApiConfig) handleDropItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userId, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	userId, err := auth.ValidateJWTWithBlacklist(r.Context(), token, cfg.JwtSecret, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return

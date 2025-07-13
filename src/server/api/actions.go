@@ -24,7 +24,7 @@ func (cfg *ApiConfig) handleGetActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = auth.ValidateJWT(token, cfg.JwtSecret)
+	_, err = auth.ValidateJWTWithBlacklist(r.Context(), token, cfg.JwtSecret, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return

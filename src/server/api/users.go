@@ -87,7 +87,7 @@ func (cfg *ApiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	userID, err := auth.ValidateJWTWithBlacklist(r.Context(), token, cfg.JwtSecret, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return

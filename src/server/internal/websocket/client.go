@@ -47,6 +47,7 @@ var upgrader = websocket.Upgrader{
 type Provider interface {
 	GetSurnameById(ctx context.Context, userID uuid.UUID) (string, error)
 	ValidateCharacterOwnership(ctx context.Context, characterName string, userID uuid.UUID) (bool, error)
+	ValidateSpecificToken(ctx context.Context, tokenID string) error
 }
 
 type Client struct {
@@ -54,10 +55,11 @@ type Client struct {
 	conn     *websocket.Conn
 	send     chan *Message
 	userID   uuid.UUID
+	tokenID  string
 	provider Provider
 }
 
-func ServeWS(hub *Hub, provider Provider, w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
+func ServeWS(hub *Hub, provider Provider, w http.ResponseWriter, r *http.Request, userID uuid.UUID, tokenID string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade failed: %v", err)
@@ -69,6 +71,7 @@ func ServeWS(hub *Hub, provider Provider, w http.ResponseWriter, r *http.Request
 		conn:     conn,
 		send:     make(chan *Message, 256),
 		userID:   userID,
+		tokenID:  tokenID,
 		provider: provider,
 	}
 
@@ -102,6 +105,23 @@ func (c *Client) readPump() {
 		}
 
 		message.UserID = c.userID
+
+		// Validate this specific token is not blacklisted
+		err = c.provider.ValidateSpecificToken(context.Background(), c.tokenID)
+		if err != nil {
+			log.Printf("Token validation failed for user %s, token %s: %v", c.userID, c.tokenID, err)
+			
+			// Send error message and close gracefully
+			c.send <- &Message{
+				Type: "error",
+				Data: map[string]interface{}{"message": "Session expired. Please reconnect."},
+			}
+			
+			// Allow the message to be sent, then close gracefully
+			time.Sleep(100 * time.Millisecond)
+			c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Session expired"))
+			return
+		}
 
 		switch message.Type {
 		case "chat":

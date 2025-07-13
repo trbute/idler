@@ -29,9 +29,11 @@ func (cfg *ApiConfig) ServeApi() {
 
 	rateLimiter := ratelimit.NewRateLimiter(cfg.Redis)
 	
-	authRateLimit := ratelimit.RateLimit{Requests: 5, Window: time.Minute}
-	gameRateLimit := ratelimit.RateLimit{Requests: 60, Window: time.Minute}
-	readRateLimit := ratelimit.RateLimit{Requests: 120, Window: time.Minute}
+	var (
+		authRateLimit = ratelimit.RateLimit{Requests: 15, Window: time.Minute}
+		gameRateLimit = ratelimit.RateLimit{Requests: 60, Window: time.Minute}
+		readRateLimit = ratelimit.RateLimit{Requests: 120, Window: time.Minute}
+	)
 	mux.Handle("POST /api/users", rateLimiter.Middleware(authRateLimit)(http.HandlerFunc(cfg.handleCreateUser)))
 	mux.Handle("PUT /api/users", rateLimiter.Middleware(gameRateLimit)(http.HandlerFunc(cfg.handleUpdateUser)))
 	mux.Handle("POST /api/characters", rateLimiter.Middleware(gameRateLimit)(http.HandlerFunc(cfg.handleCreateCharacter)))

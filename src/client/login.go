@@ -31,6 +31,23 @@ type loginModel struct {
 	cursor       int
 }
 
+func (m *loginModel) reset() {
+	for i := range m.fields {
+		m.fields[i].SetValue("")
+	}
+	
+	m.cursor = 0
+	m.subText = ""
+	m.subTextColor = ""
+	
+	if len(m.fields) > 0 {
+		m.fields[0].Focus()
+		for i := 1; i < len(m.fields); i++ {
+			m.fields[i].Blur()
+		}
+	}
+}
+
 func InitLoginModel(state *sharedState) *loginModel {
 	m := loginModel{}
 
@@ -65,6 +82,9 @@ func (m *loginModel) Update(msg tea.Msg) tea.Cmd {
 		m.subText = msg.text
 		if m.subTextColor == Green {
 			m.currentPage = UI
+			// Clear any logout message when successfully logging in
+			m.logoutMessage = ""
+			m.logoutMsgColor = ""
 			return func() tea.Msg {
 				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
 			}
@@ -106,6 +126,14 @@ func (m *loginModel) updateFields(msg tea.Msg) tea.Cmd {
 }
 
 func (m *loginModel) View() string {
+	if m.logoutMessage != "" {
+		m.reset()
+		m.subText = m.logoutMessage
+		m.subTextColor = m.logoutMsgColor
+		m.logoutMessage = ""
+		m.logoutMsgColor = ""
+	}
+	
 	var lines []string
 	lines = append(lines, m.colorStyle("login", Magenta))
 
@@ -162,25 +190,25 @@ func (m *loginModel) loginUser() tea.Cmd {
 			return apiResMsg{Red, err.Error()}
 		}
 
-		var loginRes loginResult
-		err = json.Unmarshal(body, &loginRes)
-		if err != nil {
-			return apiResMsg{Red, err.Error()}
-		}
-
-		m.userToken = loginRes.Token
-		m.surname = loginRes.Surname
-
 		var resStr string
 		resColor := Red
+		
 		if res.StatusCode == 200 {
+			var loginRes loginResult
+			err = json.Unmarshal(body, &loginRes)
+			if err != nil {
+				return apiResMsg{Red, "Failed to parse login response"}
+			}
+			
+			m.userToken = loginRes.Token
+			m.refreshToken = loginRes.RefreshToken
+			m.surname = loginRes.Surname
 			resColor = Green
 			resStr = "Login Successful"
 		} else {
-			resColor = Red
 			var errResp ErrorResponse
 			if err := json.Unmarshal(body, &errResp); err != nil {
-				resStr = "Failed to parse error response"
+				resStr = string(body)
 			} else {
 				resStr = errResp.Error
 			}

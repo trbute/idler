@@ -71,6 +71,16 @@ func (m *uiModel) listenForMessagesCmd() tea.Cmd {
 		case "error":
 			if data, ok := msg.Data["message"].(string); ok {
 				errorMsg := fmt.Sprintf("Error: %s", data)
+				
+				// If it's a session expiration, close the connection to trigger reconnect logic
+				if data == "Session expired. Please reconnect." {
+					if m.wsConn != nil {
+						m.wsConn.Close()
+						m.wsConn = nil
+					}
+					return wsError{err: fmt.Errorf("session expired")}
+				}
+				
 				return chatMsgReceived{message: errorMsg, color: Red}
 			}
 		}

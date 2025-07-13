@@ -21,6 +21,23 @@ type signupModel struct {
 	cursor       int
 }
 
+func (m *signupModel) reset() {
+	for i := range m.fields {
+		m.fields[i].SetValue("")
+	}
+	
+	m.cursor = 0
+	m.subText = ""
+	m.subTextColor = ""
+	
+	if len(m.fields) > 0 {
+		m.fields[0].Focus()
+		for i := 1; i < len(m.fields); i++ {
+			m.fields[i].Blur()
+		}
+	}
+}
+
 func InitSignupModel(state *sharedState) *signupModel {
 	m := signupModel{}
 
@@ -70,6 +87,7 @@ func (m *signupModel) Update(msg tea.Msg) tea.Cmd {
 		switch msg.String() {
 		case "tab", "enter":
 			if m.cursor == len(m.fields)+1 && msg.String() == "enter" {
+				m.reset()
 				m.currentPage = Login
 			} else if m.cursor == len(m.fields) && msg.String() == "enter" {
 				if m.fields[2].Value() != m.fields[3].Value() {

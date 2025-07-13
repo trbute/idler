@@ -61,6 +61,40 @@ type wsError struct {
 	err error
 }
 
+func (m *uiModel) reset() {
+	// Close websocket connection if open
+	if m.wsConn != nil {
+		m.wsConn.Close()
+		m.wsConn = nil
+	}
+	
+	m.selectedChar = ""
+	m.wsConnected = false
+	m.cursor = 0
+	
+	m.vpContent.Reset()
+	m.input.SetValue("")
+	m.input.Focus()
+	
+	m.vpContent.WriteString("Welcome!\nType '?' for help with commands.\n")
+	m.viewport.SetContent(m.vpContent.String())
+}
+
+func (m *uiModel) logout(message string) {
+	m.userToken = ""
+	m.refreshToken = ""
+	m.surname = ""
+	
+	m.reset()
+	
+	m.currentPage = Login
+	
+	if message != "" {
+		m.logoutMessage = message
+		m.logoutMsgColor = Yellow
+	}
+}
+
 func InitUIModel(state *sharedState) *uiModel {
 	m := uiModel{}
 	m.sharedState = state
@@ -84,10 +118,10 @@ func (m *uiModel) Init() tea.Cmd {
 
 func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
+	var wsCmd tea.Cmd
 
-	if !m.wsConnected && m.userToken != "" {
-		m.wsConnected = true
-		return m.connectWebSocketCmd()
+	if m.wsConnected && m.wsConn == nil {
+		m.wsConnected = false
 	}
 
 	switch msg := msg.(type) {
@@ -111,16 +145,22 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 		m.viewport.GotoBottom()
 		return m.listenForMessagesCmd()
 	case wsConnected:
+		m.wsConnected = true
 		output := m.colorStyle("Connected to chat", Green)
 		m.vpContent.WriteString(output + "\n")
 		m.viewport.SetContent(m.vpContent.String())
 		m.viewport.GotoBottom()
 		return m.listenForMessagesCmd()
 	case wsError:
-		output := m.colorStyle("Chat connection error: "+msg.err.Error(), Red)
-		m.vpContent.WriteString(output + "\n")
-		m.viewport.SetContent(m.vpContent.String())
-		m.viewport.GotoBottom()
+		errorMsg := msg.err.Error()
+		if strings.Contains(errorMsg, "bad handshake") || strings.Contains(errorMsg, "401") || strings.Contains(errorMsg, "session expired") {
+			m.logout("Session expired - returning to login")
+		} else {
+			output := m.colorStyle("Chat connection error: "+errorMsg, Red)
+			m.vpContent.WriteString(output + "\n")
+			m.viewport.SetContent(m.vpContent.String())
+			m.viewport.GotoBottom()
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "tab":
@@ -243,6 +283,13 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 
 	m.input, cmd = m.input.Update(msg)
 
+	if !m.wsConnected && m.userToken != "" && m.currentPage == UI {
+		wsCmd = m.connectWebSocketCmd()
+	}
+
+	if wsCmd != nil {
+		return wsCmd
+	}
 	return cmd
 }
 

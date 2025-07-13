@@ -30,7 +30,7 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	userID, err := auth.ValidateJWTWithBlacklist(r.Context(), token, cfg.JwtSecret, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return
@@ -89,7 +89,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	userID, err := auth.ValidateJWTWithBlacklist(r.Context(), token, cfg.JwtSecret, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return
@@ -372,7 +372,7 @@ func (cfg *ApiConfig) handleSelectCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	userID, err := auth.ValidateJWTWithBlacklist(r.Context(), token, cfg.JwtSecret, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Token invalid", err)
 		return

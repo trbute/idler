@@ -62,6 +62,17 @@ func (q *Queries) GetRefreshTokenById(ctx context.Context, token string) (Refres
 	return i, err
 }
 
+const revokeAllUserTokens = `-- name: RevokeAllUserTokens :exec
+UPDATE refresh_tokens
+SET updated_at = NOW(), revoked_at = NOW()
+WHERE user_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeAllUserTokens(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, revokeAllUserTokens, userID)
+	return err
+}
+
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
 SET updated_at = NOW(), revoked_at = NOW()
