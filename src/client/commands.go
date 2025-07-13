@@ -191,11 +191,13 @@ func (m *uiModel) getInventory() tea.Cmd {
 				bodyStr = "\n"
 				if len(res.Items) > 0 {
 					bodyStr += "Inventory\n"
-					for name, quantity := range res.Items {
+					for name, item := range res.Items {
 						bodyStr += fmt.Sprintf(
-							"\t%v: %v\n",
+							"\t%v: %v (weight: %d each, total: %d)\n",
 							caser.String(name),
-							quantity,
+							item.Quantity,
+							item.Weight,
+							item.TotalWeight,
 						)
 					}
 				}

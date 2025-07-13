@@ -14,10 +14,16 @@ import (
 	"github.com/trbute/idler/server/internal/database"
 )
 
+type inventoryItem struct {
+	Quantity   int32 `json:"quantity"`
+	Weight     int32 `json:"weight"`
+	TotalWeight int32 `json:"total_weight"`
+}
+
 type inventoryResponse struct {
-	Items    map[string]int32 `json:"items"`
-	Weight   int32            `json:"weight"`
-	Capacity int32            `json:"capacity"`
+	Items    map[string]inventoryItem `json:"items"`
+	Weight   int32                    `json:"weight"`
+	Capacity int32                    `json:"capacity"`
 }
 
 func (cfg *ApiConfig) handleGetInventory(w http.ResponseWriter, r *http.Request) {
@@ -62,14 +68,18 @@ func (cfg *ApiConfig) handleGetInventory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	items := map[string]int32{}
+	items := map[string]inventoryItem{}
 	for _, item := range inventoryItems {
 		itemData, err := cfg.GetItemById(r.Context(), item.ItemID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Unable to retrieve item", err)
 			return
 		}
-		items[itemData.Name] = item.Quantity
+		items[itemData.Name] = inventoryItem{
+			Quantity:    item.Quantity,
+			Weight:      itemData.Weight,
+			TotalWeight: itemData.Weight * item.Quantity,
+		}
 	}
 
 	res := inventoryResponse{

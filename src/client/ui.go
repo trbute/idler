@@ -33,10 +33,16 @@ type senseAreaResponse struct {
 	ResourceNodes []string        `json:"resource_nodes"`
 }
 
+type inventoryItem struct {
+	Quantity    int32 `json:"quantity"`
+	Weight      int32 `json:"weight"`
+	TotalWeight int32 `json:"total_weight"`
+}
+
 type inventoryResponse struct {
-	Items    map[string]int32 `json:"items"`
-	Weight   int32            `json:"weight"`
-	Capacity int32            `json:"capacity"`
+	Items    map[string]inventoryItem `json:"items"`
+	Weight   int32                    `json:"weight"`
+	Capacity int32                    `json:"capacity"`
 }
 
 type wsMessage struct {
