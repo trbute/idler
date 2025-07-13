@@ -18,3 +18,12 @@ ON CONFLICT (inventory_id, item_id)
 DO UPDATE SET
 	quantity = inventory_items.quantity + EXCLUDED.quantity,
 	updated_at = NOW();
+
+-- name: RemoveItemsFromInventory :exec
+UPDATE inventory_items 
+SET quantity = quantity - $3, updated_at = NOW()
+WHERE inventory_id = $1 AND item_id = $2 AND quantity >= $3;
+
+-- name: DeleteEmptyInventoryItems :exec
+DELETE FROM inventory_items
+WHERE inventory_id = $1 AND quantity <= 0;

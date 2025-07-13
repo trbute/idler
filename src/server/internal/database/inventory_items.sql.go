@@ -61,6 +61,16 @@ func (q *Queries) BatchAddItemsToInventory(ctx context.Context, arg BatchAddItem
 	return err
 }
 
+const deleteEmptyInventoryItems = `-- name: DeleteEmptyInventoryItems :exec
+DELETE FROM inventory_items
+WHERE inventory_id = $1 AND quantity <= 0
+`
+
+func (q *Queries) DeleteEmptyInventoryItems(ctx context.Context, inventoryID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteEmptyInventoryItems, inventoryID)
+	return err
+}
+
 const getInventoryItemsByInventoryId = `-- name: GetInventoryItemsByInventoryId :many
 SELECT id, item_id, inventory_id, quantity, created_at, updated_at FROM inventory_items
 WHERE inventory_id = $1
@@ -91,4 +101,21 @@ func (q *Queries) GetInventoryItemsByInventoryId(ctx context.Context, inventoryI
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeItemsFromInventory = `-- name: RemoveItemsFromInventory :exec
+UPDATE inventory_items 
+SET quantity = quantity - $3, updated_at = NOW()
+WHERE inventory_id = $1 AND item_id = $2 AND quantity >= $3
+`
+
+type RemoveItemsFromInventoryParams struct {
+	InventoryID pgtype.UUID
+	ItemID      int32
+	Quantity    int32
+}
+
+func (q *Queries) RemoveItemsFromInventory(ctx context.Context, arg RemoveItemsFromInventoryParams) error {
+	_, err := q.db.Exec(ctx, removeItemsFromInventory, arg.InventoryID, arg.ItemID, arg.Quantity)
+	return err
 }

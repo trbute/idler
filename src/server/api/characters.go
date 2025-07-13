@@ -126,7 +126,14 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 	var actionTarget pgtype.Int4
 	var foundNode *database.ResourceNode
 
-	if params.Target != "" {
+	if params.Target == "IDLE" {
+		action, err = cfg.GetActionByName(r.Context(), "IDLE")
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Unable to get idle action", err)
+			return
+		}
+		actionTarget = pgtype.Int4{Valid: false}
+	} else if params.Target != "" {
 		resourceNodes, err := cfg.GetResourceNodeSpawnsByCoordinates(r.Context(), character.PositionX, character.PositionY)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Unable to get resource nodes", err)
@@ -160,7 +167,7 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if action.RequiredToolTypeID.Valid {
+	if action.RequiredToolTypeID.Valid && params.Target != "IDLE" {
 		bestTool, bestTier, err := cfg.GetBestToolForType(r.Context(), character.ID, action.RequiredToolTypeID.Int32, foundNode.MinToolTier)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Unable to check required tool", err)
@@ -277,4 +284,18 @@ func (cfg *ApiConfig) GetCharacterWithOwnershipValidation(ctx context.Context, c
 	}
 
 	return character, nil
+}
+
+func (cfg *ApiConfig) SetCharacterToIdle(ctx context.Context, characterID pgtype.UUID) error {
+	idleAction, err := cfg.GetActionByName(ctx, "IDLE")
+	if err != nil {
+		return err
+	}
+
+	_, err = cfg.DB.UpdateCharacterByIdWithTarget(ctx, database.UpdateCharacterByIdWithTargetParams{
+		ActionID:     idleAction.ID,
+		ActionTarget: pgtype.Int4{Valid: false},
+		ID:           characterID,
+	})
+	return err
 }

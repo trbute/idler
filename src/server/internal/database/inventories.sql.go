@@ -94,3 +94,19 @@ func (q *Queries) GetInventoryByCharacterId(ctx context.Context, characterID pgt
 	)
 	return i, err
 }
+
+const updateInventoryWeight = `-- name: UpdateInventoryWeight :exec
+UPDATE inventories
+SET weight = weight + $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateInventoryWeightParams struct {
+	ID     pgtype.UUID
+	Weight int32
+}
+
+func (q *Queries) UpdateInventoryWeight(ctx context.Context, arg UpdateInventoryWeightParams) error {
+	_, err := q.db.Exec(ctx, updateInventoryWeight, arg.ID, arg.Weight)
+	return err
+}

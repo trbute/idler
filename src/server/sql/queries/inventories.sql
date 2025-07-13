@@ -18,3 +18,8 @@ WHERE id = $1;
 -- name: GetInventoryByCharacterId :one
 SELECT * FROM inventories
 WHERE character_id = $1;
+
+-- name: UpdateInventoryWeight :exec
+UPDATE inventories
+SET weight = weight + $2, updated_at = NOW()
+WHERE id = $1;

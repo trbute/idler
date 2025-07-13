@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -40,7 +41,9 @@ type senseAreaResponse struct {
 }
 
 type inventoryResponse struct {
-	Items map[string]int32 `json:"items"`
+	Items    map[string]int32 `json:"items"`
+	Weight   int32            `json:"weight"`
+	Capacity int32            `json:"capacity"`
 }
 
 type wsMessage struct {
@@ -144,8 +147,13 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 				var outputColor Color
 				switch command[0] {
 				case "act":
-					target := strings.ToUpper(strings.Join(command[1:], " "))
-					return m.setAction(target)
+					if m.selectedChar == "" {
+						output = "No character selected. Use 'sel <character>' first"
+						outputColor = Red
+					} else {
+						target := strings.ToUpper(strings.Join(command[1:], " "))
+						return m.setAction(target)
+					}
 				case "sense":
 					return m.getArea()
 				case "inv":
@@ -173,6 +181,17 @@ func (m *uiModel) Update(msg tea.Msg) tea.Cmd {
 					} else {
 						message := strings.Join(command[1:], " ")
 						return m.sendChatMessage(message)
+					}
+				case "idle":
+					return m.setIdle()
+				case "drop":
+					if len(command) < 3 {
+						output = "Usage: drop <item_name> <quantity>"
+						outputColor = Red
+					} else {
+						quantity := command[len(command)-1]
+						itemName := strings.Join(command[1:len(command)-1], " ")
+						return m.dropItem(itemName, quantity)
 					}
 				case "echo":
 					output = strings.Join(command[1:], " ")
@@ -463,6 +482,7 @@ func (m *uiModel) getInventory() tea.Cmd {
 						)
 					}
 				}
+				bodyStr += fmt.Sprintf("\nWeight: %d/%d", res.Weight, res.Capacity)
 			}
 		} else {
 			resColor = Red
@@ -569,5 +589,138 @@ func (m *uiModel) sendChatMessage(message string) tea.Cmd {
 		}
 
 		return nil
+	}
+}
+
+func (m *uiModel) setIdle() tea.Cmd {
+	return func() tea.Msg {
+		if m.selectedChar == "" {
+			return apiResMsg{Red, "No character selected. Use 'sel <character>' first"}
+		}
+
+		data := map[string]string{
+			"character_name": m.selectedChar,
+			"target":         "IDLE",
+		}
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req, err := http.NewRequest(
+			"PUT",
+			m.apiUrl+"/characters",
+			bytes.NewBuffer(jsonData),
+		)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+m.userToken)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		bodyStr := ""
+		resColor := Red
+		if res.StatusCode == 201 {
+			resColor = Green
+			bodyStr = fmt.Sprintf("%v is now idle", m.selectedChar)
+		} else {
+			var errResp ErrorResponse
+			if err := json.Unmarshal(body, &errResp); err != nil {
+				bodyStr = "Failed to parse error response"
+			} else {
+				bodyStr = errResp.Error
+			}
+		}
+
+		return apiResMsg{resColor, bodyStr}
+	}
+}
+
+func (m *uiModel) dropItem(itemName, quantityStr string) tea.Cmd {
+	return func() tea.Msg {
+		if m.selectedChar == "" {
+			return apiResMsg{Red, "No character selected. Use 'sel <character>' first"}
+		}
+
+		quantity, err := strconv.Atoi(quantityStr)
+		if err != nil || quantity <= 0 {
+			return apiResMsg{Red, "Invalid quantity. Must be a positive number"}
+		}
+
+		data := map[string]interface{}{
+			"character_name": m.selectedChar,
+			"item_name":      itemName,
+			"quantity":       quantity,
+		}
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req, err := http.NewRequest(
+			"POST",
+			m.apiUrl+"/inventory/drop",
+			bytes.NewBuffer(jsonData),
+		)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+m.userToken)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		defer res.Body.Close()
+
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return apiResMsg{Red, err.Error()}
+		}
+
+		bodyStr := ""
+		resColor := Red
+		if res.StatusCode == 200 {
+			resColor = Green
+			var response map[string]interface{}
+			if err := json.Unmarshal(body, &response); err == nil {
+				if message, ok := response["message"].(string); ok {
+					bodyStr = message
+				} else {
+					bodyStr = "Item dropped successfully"
+				}
+			} else {
+				bodyStr = "Item dropped successfully"
+			}
+		} else {
+			var errResp ErrorResponse
+			if err := json.Unmarshal(body, &errResp); err != nil {
+				bodyStr = "Failed to parse error response"
+			} else {
+				bodyStr = errResp.Error
+			}
+		}
+
+		return apiResMsg{resColor, bodyStr}
 	}
 }
