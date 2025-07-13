@@ -8,11 +8,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"github.com/trbute/idler/server/api"
 	"github.com/trbute/idler/server/internal/database"
 )
+
+type TickUpdate struct {
+	InventoryUpdate *api.InventoryUpdate
+	ProgressUpdate  *api.CharacterProgressUpdate
+}
 
 type WorldConfig struct {
 	DB       *database.Queries
@@ -33,7 +37,7 @@ func (cfg *WorldConfig) ProcessTicks() {
 			continue
 		}
 
-		updateChan := make(chan api.InventoryUpdate, len(activeChars))
+		updateChan := make(chan TickUpdate, len(activeChars))
 		var wg sync.WaitGroup
 
 		for _, char := range activeChars {
@@ -52,8 +56,14 @@ func (cfg *WorldConfig) ProcessTicks() {
 		}()
 
 		var inventoryUpdates []api.InventoryUpdate
+		var progressUpdates []api.CharacterProgressUpdate
 		for update := range updateChan {
-			inventoryUpdates = append(inventoryUpdates, update)
+			if update.InventoryUpdate != nil {
+				inventoryUpdates = append(inventoryUpdates, *update.InventoryUpdate)
+			}
+			if update.ProgressUpdate != nil {
+				progressUpdates = append(progressUpdates, *update.ProgressUpdate)
+			}
 		}
 
 		if len(inventoryUpdates) > 0 {
@@ -62,14 +72,21 @@ func (cfg *WorldConfig) ProcessTicks() {
 				log.Printf("Error batch updating inventories: %v", err)
 			}
 		}
+
+		if len(progressUpdates) > 0 {
+			err := cfg.ApiConfig.BatchUpdateCharacterProgress(context.Background(), progressUpdates)
+			if err != nil {
+				log.Printf("Error batch updating character progress: %v", err)
+			}
+		}
 	}
 }
 
-func (cfg *WorldConfig) processCharacterAction(char database.Character) *api.InventoryUpdate {
+func (cfg *WorldConfig) processCharacterAction(char database.Character) *TickUpdate {
 	return cfg.processResourceGathering(char)
 }
 
-func (cfg *WorldConfig) processResourceGathering(char database.Character) *api.InventoryUpdate {
+func (cfg *WorldConfig) processResourceGathering(char database.Character) *TickUpdate {
 	ctx := context.Background()
 
 	if !char.ActionTarget.Valid {
@@ -116,23 +133,24 @@ func (cfg *WorldConfig) processResourceGathering(char database.Character) *api.I
 
 	drop := cfg.rollDrop(resources)
 
-	// Increment progress if character has a limit set
+	result := &TickUpdate{
+		InventoryUpdate: &api.InventoryUpdate{
+			InventoryID: inventory.ID,
+			ItemID:      drop.ItemID,
+			Quantity:    1,
+		},
+	}
+
+	// Add progress update if character has a limit set
 	if char.ActionAmountLimit.Valid {
 		newProgress := char.ActionAmountProgress.Int32 + 1
-		_, err = cfg.DB.UpdateCharacterProgress(ctx, database.UpdateCharacterProgressParams{
-			ActionAmountProgress: pgtype.Int4{Int32: newProgress, Valid: true},
-			ID:                   char.ID,
-		})
-		if err != nil {
-			log.Printf("Failed to update character progress for %s: %v", char.Name, err)
+		result.ProgressUpdate = &api.CharacterProgressUpdate{
+			CharacterID: char.ID,
+			Progress:    newProgress,
 		}
 	}
 
-	return &api.InventoryUpdate{
-		InventoryID: inventory.ID,
-		ItemID:      drop.ItemID,
-		Quantity:    1,
-	}
+	return result
 }
 
 func (cfg *WorldConfig) rollDrop(resources []database.Resource) database.Resource {

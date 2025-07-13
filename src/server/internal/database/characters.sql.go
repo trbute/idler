@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const batchUpdateCharacterProgress = `-- name: BatchUpdateCharacterProgress :exec
+UPDATE characters AS c
+SET action_amount_progress = updates.progress,
+	updated_at = NOW()
+FROM (
+	SELECT unnest($1::UUID[]) AS id, unnest($2::INTEGER[]) AS progress
+) AS updates
+WHERE c.id = updates.id
+`
+
+type BatchUpdateCharacterProgressParams struct {
+	Column1 []pgtype.UUID
+	Column2 []int32
+}
+
+func (q *Queries) BatchUpdateCharacterProgress(ctx context.Context, arg BatchUpdateCharacterProgressParams) error {
+	_, err := q.db.Exec(ctx, batchUpdateCharacterProgress, arg.Column1, arg.Column2)
+	return err
+}
+
 const createCharacter = `-- name: CreateCharacter :one
 INSERT INTO characters(id, user_id, name, created_at, updated_at)
 VALUES (

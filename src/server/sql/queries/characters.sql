@@ -45,6 +45,15 @@ SET action_amount_progress = $1,
 WHERE id = $2
 RETURNING *;
 
+-- name: BatchUpdateCharacterProgress :exec
+UPDATE characters AS c
+SET action_amount_progress = updates.progress,
+	updated_at = NOW()
+FROM (
+	SELECT unnest($1::UUID[]) AS id, unnest($2::INTEGER[]) AS progress
+) AS updates
+WHERE c.id = updates.id;
+
 -- name: SetCharacterToIdleAndResetGathering :one
 UPDATE characters
 SET action_id = $1,

@@ -35,12 +35,23 @@ func main() {
 		dbName,
 	)
 
-	pool, err := pgxpool.New(context.Background(), dbURL)
+	config, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		log.Fatalf("Unable to parse database config: %v", err)
+	}
+	
+	config.MaxConns = 25
+	config.MinConns = 5
+	config.MaxConnLifetime = time.Hour
+	config.MaxConnIdleTime = 15 * time.Minute
+	config.HealthCheckPeriod = 30 * time.Second
+	
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		log.Fatalf("Unable to connect to the database: %v", err)
 	}
 	defer pool.Close()
-
+	
 	DbConn := database.New(pool)
 
 	jwtSecret := os.Getenv("JWT_SECRET")

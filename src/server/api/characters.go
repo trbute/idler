@@ -205,6 +205,9 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Invalidate active characters cache since character action changed
+	cfg.InvalidateActiveCharactersCache(r.Context())
+
 	respondWithJSON(w, http.StatusCreated, map[string]interface{}{
 		"name":        char.Name,
 		"action_id":   char.ActionID,
@@ -214,7 +217,57 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 }
 
 func (cfg *ApiConfig) GetActiveCharacters(ctx context.Context) ([]database.Character, error) {
-	return cfg.DB.GetActiveCharacters(ctx)
+	cacheKey := "active_characters"
+	
+	// Try to get from cache first
+	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var characters []database.Character
+		if json.Unmarshal([]byte(cached), &characters) == nil {
+			return characters, nil
+		}
+	}
+	
+	// Cache miss - get from database
+	characters, err := cfg.DB.GetActiveCharacters(ctx)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Cache the result for 30 seconds
+	if data, err := json.Marshal(characters); err == nil {
+		cfg.Redis.Set(ctx, cacheKey, data, 30*time.Second)
+	}
+	
+	return characters, nil
+}
+
+func (cfg *ApiConfig) BatchUpdateCharacterProgress(ctx context.Context, updates []CharacterProgressUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+	
+	ids := make([]pgtype.UUID, len(updates))
+	progress := make([]int32, len(updates))
+	
+	for i, update := range updates {
+		ids[i] = update.CharacterID
+		progress[i] = update.Progress
+	}
+	
+	return cfg.DB.BatchUpdateCharacterProgress(ctx, database.BatchUpdateCharacterProgressParams{
+		Column1: ids,
+		Column2: progress,
+	})
+}
+
+type CharacterProgressUpdate struct {
+	CharacterID pgtype.UUID
+	Progress    int32
+}
+
+func (cfg *ApiConfig) InvalidateActiveCharactersCache(ctx context.Context) {
+	cfg.Redis.Del(ctx, "active_characters")
 }
 
 func (cfg *ApiConfig) GetCharacterByName(ctx context.Context, name string) (database.Character, error) {
@@ -305,6 +358,10 @@ func (cfg *ApiConfig) SetCharacterToIdle(ctx context.Context, characterID pgtype
 		ActionID: idleAction.ID,
 		ID:       characterID,
 	})
+	if err == nil {
+		// Invalidate active characters cache since character went idle
+		cfg.InvalidateActiveCharactersCache(ctx)
+	}
 	return err
 }
 

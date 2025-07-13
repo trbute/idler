@@ -57,7 +57,7 @@ func (cfg *ApiConfig) handleGetInventory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	inventoryItems, err := cfg.DB.GetInventoryItemsByInventoryId(r.Context(), inventory.ID)
+	inventoryItems, err := cfg.GetInventoryItemsByInventoryIdCached(r.Context(), inventory.ID)
 	if err != nil {
 		respondWithError(
 			w,
@@ -209,6 +209,37 @@ func (cfg *ApiConfig) GetInventoryByCharacterId(ctx context.Context, characterID
 	return inventory, nil
 }
 
+func (cfg *ApiConfig) GetInventoryItemsByInventoryIdCached(ctx context.Context, inventoryID pgtype.UUID) ([]database.InventoryItem, error) {
+	cacheKey := fmt.Sprintf("inventory_items:inv:%s", inventoryID.String())
+	
+	// Try to get from cache first
+	cached, err := cfg.Redis.Get(ctx, cacheKey).Result()
+	if err == nil {
+		var items []database.InventoryItem
+		if json.Unmarshal([]byte(cached), &items) == nil {
+			return items, nil
+		}
+	}
+	
+	// Cache miss - get from database
+	items, err := cfg.DB.GetInventoryItemsByInventoryId(ctx, inventoryID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Cache the result for 5 minutes
+	if data, err := json.Marshal(items); err == nil {
+		cfg.Redis.Set(ctx, cacheKey, data, 5*time.Minute)
+	}
+	
+	return items, nil
+}
+
+func (cfg *ApiConfig) InvalidateInventoryItemsCache(ctx context.Context, inventoryID pgtype.UUID) {
+	cacheKey := fmt.Sprintf("inventory_items:inv:%s", inventoryID.String())
+	cfg.Redis.Del(ctx, cacheKey)
+}
+
 type InventoryUpdate struct {
 	InventoryID pgtype.UUID
 	ItemID      int32
@@ -271,6 +302,8 @@ func (cfg *ApiConfig) BatchAddItemsToInventory(ctx context.Context, updates []In
 		if err != nil {
 			log.Printf("Error updating inventory weight for %s: %v", inventoryID, err)
 		}
+		// Invalidate inventory items cache since items were added
+		cfg.InvalidateInventoryItemsCache(ctx, inventoryID)
 	}
 
 	return nil
@@ -397,6 +430,9 @@ func (cfg *ApiConfig) DropItemFromInventory(ctx context.Context, inventoryID pgt
 	if err != nil {
 		log.Printf("Error updating inventory weight after drop: %v", err)
 	}
+
+	// Invalidate inventory items cache since items were dropped
+	cfg.InvalidateInventoryItemsCache(ctx, inventoryID)
 
 	return nil
 }
