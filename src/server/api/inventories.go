@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
 	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/validation"
 )
 
 type inventoryItem struct {
@@ -40,6 +41,10 @@ func (cfg *ApiConfig) handleGetInventory(w http.ResponseWriter, r *http.Request)
 	}
 
 	charName := r.PathValue("character")
+	if err := validation.ValidateCharacterName(charName); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
 	
 	char, err := cfg.GetCharacterWithOwnershipValidation(r.Context(), charName, userId)
 	if err != nil {
@@ -118,13 +123,14 @@ func (cfg *ApiConfig) handleDropItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.CharacterName == "" {
-		respondWithError(w, http.StatusBadRequest, "Character name is required", nil)
+	if err := validation.ValidateCharacterName(params.CharacterName); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 
-	if params.ItemName == "" {
-		respondWithError(w, http.StatusBadRequest, "Item name is required", nil)
+	params.ItemName = strings.TrimSpace(strings.ToUpper(params.ItemName))
+	if err := validation.ValidateItemName(params.ItemName); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 

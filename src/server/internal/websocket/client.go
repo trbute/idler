@@ -22,23 +22,23 @@ const (
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
-		
+
 		if origin == "" {
 			return true
 		}
-		
+
 		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 		if allowedOrigins == "" {
 			allowedOrigins = "http://localhost:23234,http://127.0.0.1:23234"
 		}
-		
-		origins := strings.Split(allowedOrigins, ",")
-		for _, allowedOrigin := range origins {
+
+		origins := strings.SplitSeq(allowedOrigins, ",")
+		for allowedOrigin := range origins {
 			if strings.TrimSpace(allowedOrigin) == origin {
 				return true
 			}
 		}
-		
+
 		log.Printf("WebSocket connection denied for origin: %s", origin)
 		return false
 	},
@@ -50,16 +50,21 @@ type Provider interface {
 	ValidateSpecificToken(ctx context.Context, tokenID string) error
 }
 
-type Client struct {
-	hub      *Hub
-	conn     *websocket.Conn
-	send     chan *Message
-	userID   uuid.UUID
-	tokenID  string
-	provider Provider
+type RateLimiter interface {
+	CheckWebSocketRateLimit(ctx context.Context, userID uuid.UUID) (bool, error)
 }
 
-func ServeWS(hub *Hub, provider Provider, w http.ResponseWriter, r *http.Request, userID uuid.UUID, tokenID string) {
+type Client struct {
+	hub         *Hub
+	conn        *websocket.Conn
+	send        chan *Message
+	userID      uuid.UUID
+	tokenID     string
+	provider    Provider
+	rateLimiter RateLimiter
+}
+
+func ServeWS(hub *Hub, provider Provider, rateLimiter RateLimiter, w http.ResponseWriter, r *http.Request, userID uuid.UUID, tokenID string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade failed: %v", err)
@@ -67,12 +72,13 @@ func ServeWS(hub *Hub, provider Provider, w http.ResponseWriter, r *http.Request
 	}
 
 	client := &Client{
-		hub:      hub,
-		conn:     conn,
-		send:     make(chan *Message, 256),
-		userID:   userID,
-		tokenID:  tokenID,
-		provider: provider,
+		hub:         hub,
+		conn:        conn,
+		send:        make(chan *Message, 256),
+		userID:      userID,
+		tokenID:     tokenID,
+		provider:    provider,
+		rateLimiter: rateLimiter,
 	}
 
 	client.hub.register <- client
@@ -110,17 +116,32 @@ func (c *Client) readPump() {
 		err = c.provider.ValidateSpecificToken(context.Background(), c.tokenID)
 		if err != nil {
 			log.Printf("Token validation failed for user %s, token %s: %v", c.userID, c.tokenID, err)
-			
+
 			// Send error message and close gracefully
 			c.send <- &Message{
 				Type: "error",
 				Data: map[string]interface{}{"message": "Session expired. Please reconnect."},
 			}
-			
+
 			// Allow the message to be sent, then close gracefully
 			time.Sleep(100 * time.Millisecond)
 			c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Session expired"))
 			return
+		}
+
+		// Check rate limit for WebSocket messages
+		allowed, err := c.rateLimiter.CheckWebSocketRateLimit(context.Background(), c.userID)
+		if err != nil {
+			log.Printf("Rate limit check failed for user %s: %v", c.userID, err)
+			continue
+		}
+		
+		if !allowed {
+			c.send <- &Message{
+				Type: "error",
+				Data: map[string]interface{}{"message": "Rate limit exceeded. Please slow down."},
+			}
+			continue
 		}
 
 		switch message.Type {
@@ -129,17 +150,25 @@ func (c *Client) readPump() {
 				message.Data = make(map[string]interface{})
 			}
 			message.Data["user_id"] = c.userID.String()
-			
+
 			surname, err := c.provider.GetSurnameById(context.Background(), c.userID)
 			if err != nil {
 				log.Printf("Failed to get surname for user %s: %v", c.userID, err)
 				surname = "Unknown User"
 			}
 			message.Data["surname"] = surname
-			
+
 			if characterNameInterface, exists := message.Data["character_name"]; exists {
 				characterName, ok := characterNameInterface.(string)
-				if ok && characterName != "" {
+				if !ok {
+					log.Printf("User %s sent invalid character_name type: %T", c.userID, characterNameInterface)
+					c.send <- &Message{
+						Type: "error",
+						Data: map[string]interface{}{"message": "Invalid character name format"},
+					}
+					continue
+				}
+				if characterName != "" {
 					isValid, err := c.provider.ValidateCharacterOwnership(context.Background(), characterName, c.userID)
 					if err != nil {
 						log.Printf("Error validating character %s for user %s: %v", characterName, c.userID, err)
@@ -149,7 +178,7 @@ func (c *Client) readPump() {
 						}
 						continue
 					}
-					
+
 					if !isValid {
 						log.Printf("User %s attempted to use character %s they don't own", c.userID, characterName)
 						c.send <- &Message{
@@ -158,13 +187,13 @@ func (c *Client) readPump() {
 						}
 						continue
 					}
-					
+
 					message.Data["character_name"] = characterName
 				}
 			}
-			
+
 			message.To = "all"
-			
+
 			c.hub.broadcast <- &message
 		case "ping":
 			c.send <- &Message{
@@ -207,3 +236,4 @@ func (c *Client) writePump() {
 		}
 	}
 }
+

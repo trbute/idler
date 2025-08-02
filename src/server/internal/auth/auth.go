@@ -97,7 +97,10 @@ func ValidateJWTWithBlacklist(ctx context.Context, tokenString, tokenSecret stri
 		return uuid.Nil, err
 	}
 
-	claims := token.Claims.(*jwt.RegisteredClaims)
+	claims, ok := token.Claims.(*jwt.RegisteredClaims)
+	if !ok {
+		return uuid.Nil, errors.New("invalid token claims type")
+	}
 	
 	// Check if this specific token is blacklisted
 	tokenHash := fmt.Sprintf(blacklistKeyFmt, claims.ID)
@@ -142,7 +145,10 @@ func BlacklistToken(ctx context.Context, tokenString string, redis *redis.Client
 		return err
 	}
 
-	claims := token.Claims.(*jwt.RegisteredClaims)
+	claims, ok := token.Claims.(*jwt.RegisteredClaims)
+	if !ok {
+		return errors.New("invalid token claims type")
+	}
 	if claims.ID == "" {
 		return errors.New("token missing ID claim")
 	}

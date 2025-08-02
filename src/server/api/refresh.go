@@ -94,7 +94,11 @@ func (cfg *ApiConfig) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := parsedToken.Claims.(*jwt.RegisteredClaims)
+	claims, ok := parsedToken.Claims.(*jwt.RegisteredClaims)
+	if !ok {
+		respondWithError(w, http.StatusInternalServerError, "Invalid token claims type", nil)
+		return
+	}
 	err = auth.TrackUserToken(r.Context(), userID, claims.ID, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to track new token", err)

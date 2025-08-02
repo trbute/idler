@@ -15,6 +15,7 @@ import (
 	"github.com/trbute/idler/server/api"
 	"github.com/trbute/idler/server/data"
 	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/ratelimit"
 	"github.com/trbute/idler/server/internal/websocket"
 	"github.com/trbute/idler/server/internal/world"
 )
@@ -87,12 +88,15 @@ func main() {
 	hub := websocket.NewHub()
 	go hub.Run()
 
+	limiter := ratelimit.NewLimiter(rdb)
+
 	apiCfg := api.ApiConfig{
 		DB:        DbConn,
 		JwtSecret: jwtSecret,
 		Redis:     rdb,
 		Pool:      pool,
 		Hub:       hub,
+		Limiter:   limiter,
 	}
 
 	worldCfg := world.WorldConfig{

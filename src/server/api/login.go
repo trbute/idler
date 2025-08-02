@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
 	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/validation"
 )
 
 func (cfg *ApiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -29,6 +30,16 @@ func (cfg *ApiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to decode parameters", err)
+		return
+	}
+
+	if err := validation.ValidateEmail(params.Email); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	if params.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "password is required", nil)
 		return
 	}
 
@@ -80,7 +91,11 @@ func (cfg *ApiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := parsedToken.Claims.(*jwt.RegisteredClaims)
+	claims, ok := parsedToken.Claims.(*jwt.RegisteredClaims)
+	if !ok {
+		respondWithError(w, http.StatusInternalServerError, "Invalid token claims type", nil)
+		return
+	}
 	err = auth.TrackUserToken(r.Context(), userid, claims.ID, cfg.Redis)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to track new token", err)

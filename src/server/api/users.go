@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
 	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/validation"
 )
 
 type User struct {
@@ -37,8 +38,18 @@ func (cfg *ApiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(params.Surname) < 3 || len(params.Surname) > 20 {
-		respondWithError(w, http.StatusBadRequest, "Surname must be between 3 and 20 characters", nil)
+	if err := validation.ValidateEmail(params.Email); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	if err := validation.ValidatePassword(params.Password); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	if err := validation.ValidateSurname(params.Surname); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 
@@ -78,6 +89,16 @@ func (cfg *ApiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Unable to decode parameters", err)
+		return
+	}
+
+	if err := validation.ValidateEmail(params.Email); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	if err := validation.ValidatePassword(params.Password); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 

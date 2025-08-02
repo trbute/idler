@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trbute/idler/server/internal/auth"
 	"github.com/trbute/idler/server/internal/database"
+	"github.com/trbute/idler/server/internal/validation"
 )
 
 type Character struct {
@@ -44,6 +45,11 @@ func (cfg *ApiConfig) handleCreateCharacter(w http.ResponseWriter, r *http.Reque
 	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to decode parameters", err)
+		return
+	}
+
+	if err := validation.ValidateCharacterName(params.Name); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 
@@ -108,8 +114,19 @@ func (cfg *ApiConfig) handleUpdateCharacter(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if params.CharacterName == "" {
-		respondWithError(w, http.StatusBadRequest, "Character name is required", nil)
+	if err := validation.ValidateCharacterName(params.CharacterName); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	params.Target = strings.TrimSpace(strings.ToUpper(params.Target))
+	if err := validation.ValidateTarget(params.Target); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	if err := validation.ValidateAmount(params.Amount); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 
@@ -379,8 +396,8 @@ func (cfg *ApiConfig) handleSelectCharacter(w http.ResponseWriter, r *http.Reque
 	}
 
 	characterName := r.PathValue("character")
-	if characterName == "" {
-		respondWithError(w, http.StatusBadRequest, "Character name is required", nil)
+	if err := validation.ValidateCharacterName(characterName); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 

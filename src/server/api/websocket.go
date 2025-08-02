@@ -31,10 +31,14 @@ func (cfg *ApiConfig) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := parsedToken.Claims.(*jwt.RegisteredClaims)
+	claims, ok := parsedToken.Claims.(*jwt.RegisteredClaims)
+	if !ok {
+		http.Error(w, "Invalid token claims type", http.StatusUnauthorized)
+		return
+	}
 	tokenID := claims.ID
 
-	websocket.ServeWS(cfg.Hub, cfg, w, r, userID, tokenID)
+	websocket.ServeWS(cfg.Hub, cfg, cfg.Limiter, w, r, userID, tokenID)
 }
 
 func (cfg *ApiConfig) ValidateSpecificToken(ctx context.Context, tokenID string) error {
